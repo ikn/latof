@@ -12,7 +12,7 @@ from util import dd
 
 class Conf (object):
 
-    IDENT = 'game'
+    IDENT = 'latof'
     USE_SAVEDATA = False
     USE_FONTS = False
 
@@ -46,7 +46,7 @@ class Conf (object):
 
     # display
     WINDOW_ICON = None #IMG_DIR + 'icon.png'
-    WINDOW_TITLE = ''
+    WINDOW_TITLE = 'Life and Times of Frog?'
     MOUSE_VISIBLE = dd(True) # per-backend
     FLAGS = 0
     FULLSCREEN = False
@@ -102,6 +102,7 @@ class Conf (object):
     # gameplay
     FROG_MOVE_TIME = 5
     TILE_SIZE = (40, 40)
+    LEVEL_SIZE = (15, 15)
 
     # levels
     LEVELS = [{

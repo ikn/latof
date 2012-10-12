@@ -10,7 +10,6 @@ class Level (object):
         event_handler.add_event_handlers({
             pg.MOUSEBUTTONDOWN: self._click
         })
-        self._road = obj.Road(self)
         # variables
         self.ident = ident
         self._changed = set()
@@ -19,29 +18,28 @@ class Level (object):
 
     def init (self):
         data = conf.LEVELS[self.ident]
-        self.frog = obj.Frog(self, data['frog pos'], data.get('frog dirn', 1))
         self.objs = objs = {}
+        self._road = obj.Road(self)
+        self.frog = obj.Frog(self, data['frog pos'], data.get('frog dirn', 1))
         for o, pos in data['objs'].iteritems():
             objs[tuple(pos)] = getattr(obj, o)(self, pos)
         self.dirty = True
 
     def _click (self, evt):
-        pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
-        if self._road.rect.collidepoint(pos):
-            obj = self._road
-            self._road.pos = pos
-        else:
-            obj = self.objs.get(pos, pos)
-        self.frog.investigate(obj)
+        if evt.button == 1:
+            pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
+            self.frog.investigate(self.objs.get(pos), pos)
 
-    def change_tile (self, *pos):
+    def _change_tile (self, *pos):
         self._changed.update(tuple(p) for p in pos)
 
     def add_obj (self, obj, pos):
         self.objs[tuple(pos)] = obj
+        self._change_tile(pos)
 
     def rm_obj (self, pos):
         del self.objs[tuple(pos)]
+        self._change_tile(pos)
 
     def say (self, msg):
         print msg
@@ -50,15 +48,14 @@ class Level (object):
         self.frog.update()
 
     def draw (self, screen):
-        self.frog.pre_draw()
         bg = self.game.img('bg.png')
         if self.dirty:
             self.dirty = False
             self._changed = set()
             screen.blit(bg, (0, 0))
             for obj in self.objs.values():
-                obj.draw(screen)
-            self.frog.draw(screen)
+                if hasattr(obj, 'draw'):
+                    obj.draw(screen)
             return True
         elif self._changed:
             changed = self._changed
@@ -71,8 +68,8 @@ class Level (object):
                 r = (x, y, sx, sy)
                 rects.append(r)
                 screen.blit(bg, (x, y), r)
-            for obj in [self.frog]:
-                if tuple(obj.pos) in changed:
+            for pos, obj in self.objs.iteritems():
+                if hasattr(obj, 'draw'):
                     obj.draw(screen)
             return rects
         else:
