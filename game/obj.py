@@ -10,6 +10,16 @@ import objhelpers
 # Holdable.drop(pos): drop held object at pos
 # Holdable.use(obj): use held object on object obj
 
+def name (obj):
+    s = obj.__class__.__name__
+    words = []
+    i = 0
+    for j, c in enumerate(s):
+        if c.isupper():
+            words.append(s[i:j])
+            i = j
+    return ' '.join(words)
+
 
 class Road (object):
     def __init__ (self, level):
@@ -19,7 +29,7 @@ class Road (object):
             for j in xrange(200 / sy, 400 / sy):
                 level.add_obj(self, (i, j))
 
-    def interact (self):
+    def interact (self, frog):
         self.level.say('a busy road.')
 
 
@@ -45,6 +55,7 @@ class Frog (Obj):
     def __init__ (self, *args, **kw):
         Obj.__init__(self, *args, **kw)
         self._last_pos = list(self.pos)
+        self._last_dirn = self.dirn
         self._queue_t = 0
         self._queue = []
         self._item = None
@@ -122,7 +133,7 @@ class Frog (Obj):
         path.reverse()
         return path[1:] # first item will be the current position
 
-    def move (self, dest):
+    def move (self, dest, objs):
         # remove any queued movement
         q = self._queue
         rm = []
@@ -131,7 +142,7 @@ class Frog (Obj):
                 rm.append(item)
         for item in rm:
             q.remove(item)
-        all_objs = list(self.level.objs)
+        all_objs = list(self.level.objs) + objs
         all_objs.remove(tuple(self.pos))
         # first ignore all objects
         path = self.get_path(dest, all_objs)
@@ -139,7 +150,7 @@ class Frog (Obj):
             # no possible path: don't move at all (shouldn't ever happen)
             return
         # now unignore every object we didn't cross
-        objs = [pos for pos in all_objs if pos not in path]
+        objs += [pos for pos in all_objs if pos not in path]
         # now unignore each object we cross in turn until we get no further
         while True:
             # get first object
@@ -163,23 +174,29 @@ class Frog (Obj):
         for pos in path:
             self.queue(self._move, pos)
 
-    def interact (self):
+    def interact (self, frog):
         self.level.say('it\'s me!  I think...')
 
-    def _investigate (self, obj, pos):
-        if self._item is None:
-            if hasattr(obj, 'interact'):
-                obj.interact()
-        else:
-            self._item.use(obj)
+    def _investigate (self, obj, pos, use):
+        if use:
+            if self._item is not None:
+                if obj is None:
+                    self.drop()
+                else:
+                    self._item.use(obj)
+        elif hasattr(obj, 'interact'):
+            obj.interact(self)
 
-    def investigate (self, obj, pos, done = False):
-        if not isinstance(obj, tuple):
+    def investigate (self, obj, pos, use, done = False):
+        if use and self._item is None:
+            return
+        drop = obj is None and use
+        if obj is not None or drop:
             # check if in an adjacent tile
             there = False
             if self.dist(self.pos, pos) <= 1:
                 there = True
-            else:
+            elif obj is not None:
                 objs = self.level.objs
                 for axis in (0, 1):
                     for d in (-1, 1):
@@ -190,16 +207,20 @@ class Frog (Obj):
                             break
             if there:
                 self._face(pos)
-                self._investigate(obj, pos)
+                self._investigate(obj, pos, use)
                 return
         if done:
             print 'couldn\'t move to object'
         else:
             # move there
-            self.move(pos)
-            if obj is not None:
+            objs = []
+            if drop:
+                # drop object: treat dest as obstacle
+                objs.append(pos)
+            self.move(pos, objs)
+            if obj is not None or use:
                 # queue another call here with done = True
-                self.queue(self.investigate, obj, pos, True)
+                self.queue(self.investigate, obj, pos, use, done = True)
 
     def grab (self, obj):
         if self._item is None:
@@ -214,11 +235,32 @@ class Frog (Obj):
     def drop (self, obj = None):
         if obj is None:
             obj = self._item
+        else:
+            # set this as our item in case we can't drop it anywhere
+            assert self._item is None
+            self._item = obj
         if obj is not None:
             # find a place to put the object
-            # TODO
-            #self.level.add_obj(obj, pos)
-            pass
+            pos = self.pos
+            objs = self.level.objs
+            sz = conf.LEVEL_SIZE
+            success = False
+            df_axis = self.dirn % 2
+            df_sgn = 1 if self.dirn > 1 else -1
+            ds_axis = (df_axis + 1) % 2
+            for d_sideways, d_facing in [(0, 1), (-1, 0), (1, 0), (-1, 1),
+                                         (1, 1), (-1, -1), (1, -1), (0, -1)]:
+                p = list(pos)
+                p[df_axis] += d_facing * df_sgn
+                p[ds_axis] += d_sideways
+                if p[0] >= 0 and p[1] >= 0 and p[0] < sz[0] and p[1] < sz[1] \
+                   and tuple(p) not in objs:
+                    success = True
+                    break
+            if success:
+                # drop object
+                self._item = None
+                obj.drop(p)
 
     def update (self):
         if self._queue_t <= 0:
@@ -227,10 +269,12 @@ class Frog (Obj):
                 self._queue_t = f(*args, **kw) or 1
         self._queue_t -= 1
         l, p = self._last_pos, self.pos
-        if l != p:
+        ld, d = self._last_dirn, self.dirn
+        if l != p or ld != d:
             self.level.rm_obj(l)
             self.level.add_obj(self, p)
             self._last_pos = p
+            self._last_dirn = d
 
     def draw (self, screen):
         x, y = self.pos
@@ -243,6 +287,7 @@ class Holdable (Obj):
     holdable = True
 
     def __init__ (self, *args, **kw):
+        Obj.__init__(self, *args, **kw)
         self.held = False
         if kw.get('held', False):
             self.grab()
@@ -268,11 +313,14 @@ class Static (Obj):
 
 
 class Basket (Static):
-    def interact (self):
+    def interact (self, frog):
         self.level.say('it\'s a basket containing some things.')
 
 
 class Banana (Holdable):
+    def interact (self, frog):
+        frog.grab(self)
+
     def use (self, obj):
         if self.held and isinstance(obj, Frog):
             obj.destroy()

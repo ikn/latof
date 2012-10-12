@@ -108,7 +108,7 @@ class Conf (object):
     LEVELS = [{
         'frog pos': (7, 12),
         'objs': {
-            'Basket': (3, 13)
+            'Banana': (3, 13)
         }
     }]
 

@@ -26,9 +26,9 @@ class Level (object):
         self.dirty = True
 
     def _click (self, evt):
-        if evt.button == 1:
+        if evt.button in (1, 3):
             pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
-            self.frog.investigate(self.objs.get(pos), pos)
+            self.frog.investigate(self.objs.get(pos), pos, evt.button == 3)
 
     def _change_tile (self, *pos):
         self._changed.update(tuple(p) for p in pos)
