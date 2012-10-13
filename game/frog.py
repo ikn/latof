@@ -1,19 +1,19 @@
 import pygame as pg
 
 from conf import conf
-from obj import Obj, DrawSelf
+import obj as obj_module
 
 
-class Frog (DrawSelf):
+class Frog (obj_module.Placeable):
     def __init__ (self, level, pos = None, dirn = 1):
-        DrawSelf.__init__(self, level, pos)
+        obj_module.Placeable.__init__(self, level, pos)
         self._last_pos = list(self.pos)
         self._last_dirn = self.dirn = dirn
         self.imgs = [pg.transform.rotate(self.img, angle)
                      for angle in (90, 0, -90, -180)]
         self._queue_t = 0
         self._queue = []
-        self._item = None
+        self.item = None
         self.level.add_obj(self, self.pos)
 
     def queue (self, f, *args, **kw):
@@ -139,17 +139,17 @@ class Frog (DrawSelf):
 
     def _investigate (self, obj, pos, use):
         if use:
-            if self._item is not None:
+            if self.item is not None:
                 if obj is None:
                     self.drop()
                 else:
-                    self._item.use(obj, pos)
+                    self.item.use(self, obj, pos)
+            elif isinstance(obj, obj_module.Holdable):
+                self.grab(obj)
         else:
             obj.interact(self)
 
     def investigate (self, objs, pos, use, done = False):
-        if use and self._item is None:
-            return
         # select solid obj or uppermost (last) obj
         solid = [o for o in objs if o.solid]
         if solid:
@@ -158,8 +158,7 @@ class Frog (DrawSelf):
             obj = objs[-1]
         else:
             obj = None
-        drop = obj is None and use
-        if obj is not None or drop:
+        if obj is not None or use:
             # check if in an adjacent tile
             there = False
             if self.dist(self.pos, pos) <= 1:
@@ -183,30 +182,33 @@ class Frog (DrawSelf):
         if done:
             print 'couldn\'t move to object'
         else:
-            # move there (if dropping, treat dest as obstacle)
-            self.move(pos, [pos] if drop else [])
+            # move there (if using or there's an object, treat dest as obstacle
+            # even if it's empty or non-solid)
+            self.move(pos, [pos] if use or obj is not None else [])
             if obj is not None or use:
                 # queue another call here with done = True
                 self.queue(self.investigate, objs, pos, use, done = True)
 
     def grab (self, obj):
-        if self._item is None:
-            self._item = obj
+        if self.item is None:
+            self.item = obj
             obj.grab()
         else:
             self.level.say('I\'m already holding something.')
 
     def destroy (self):
-        self._item = None
+        self.item = None
 
-    def drop (self, obj = None):
+    def drop (self, obj = None, pos = None):
         if obj is None:
-            obj = self._item
+            obj = self.item
         else:
             # set this as our item in case we can't drop it anywhere
-            assert self._item is None
-            self._item = obj
-        if obj is not None:
+            assert self.item is None
+            self.item = obj
+        if obj is None:
+            return
+        if pos is None:
             # find a place to put the object
             pos = self.pos
             objs = self.level.objs
@@ -226,9 +228,13 @@ class Frog (DrawSelf):
                     success = True
                     break
             if success:
-                # drop object
-                self._item = None
-                obj.drop(p)
+                pos = p
+            else:
+                self.level.say('I can\'t find anywhere to drop this')
+                return
+        # drop object
+        self.item = None
+        obj.drop(pos)
 
     def update (self):
         if self._queue_t <= 0:
@@ -246,4 +252,4 @@ class Frog (DrawSelf):
 
     def draw (self, screen):
         self.img = self.imgs[self.dirn]
-        DrawSelf.draw(self, screen)
+        obj_module.Placeable.draw(self, screen)

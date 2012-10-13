@@ -1,7 +1,7 @@
 import pygame as pg
 
 from conf import conf
-import obj
+import obj as obj_module
 from frog import Frog
 
 
@@ -21,10 +21,13 @@ class Level (object):
         data = conf.LEVELS[self.ident]
         sx, sy = conf.LEVEL_SIZE
         self.objs = objs = [[[] for j in xrange(sx)] for i in xrange(sy)]
-        self._road = obj.Road(self)
+        self._road = obj_module.Road(self)
         self.frog = Frog(self, data['frog pos'], data.get('frog dirn', 1))
-        for o, pos in data['objs'].iteritems():
-            objs[pos[0]][pos[1]].append(getattr(obj, o)(self, pos))
+        for pos, os in data['objs'].iteritems():
+            if isinstance(os, basestring):
+                os = (os,)
+            objs[pos[0]][pos[1]] = [getattr(obj_module, obj)(self, pos)
+                                    for obj in os]
         self.dirty = True
 
     def _click (self, evt):
@@ -40,8 +43,10 @@ class Level (object):
         self.objs[pos[0]][pos[1]].append(o)
         self._change_tile(pos)
 
-    def rm_obj (self, o, pos):
-        self.objs[pos[0]][pos[1]].remove(o)
+    def rm_obj (self, obj, pos = None):
+        if pos is None:
+            pos = obj.pos
+        self.objs[pos[0]][pos[1]].remove(obj)
         self._change_tile(pos)
 
     def say (self, msg):
@@ -54,7 +59,7 @@ class Level (object):
         last = None
         # draw non-solid
         for o in objs:
-            if isinstance(o, obj.DrawSelf):
+            if isinstance(o, obj_module.Placeable):
                 if o.solid:
                     last = o
                 else:

@@ -20,6 +20,11 @@ do
 On other systems (Windows, for example), run game.py with your Python 2
 executable.
 
+    CONTROLS
+
+left-click: move; inspect or interact with objects.
+right-click: pick up, drop or use objects.
+
     LICENSING
 
 Source code is available under the GPL version 3 (included).
