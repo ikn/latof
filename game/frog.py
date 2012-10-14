@@ -4,9 +4,9 @@ from conf import conf
 import obj as obj_module
 
 
-class Frog (obj_module.Placeable):
+class Frog (obj_module.OneTileObj):
     def __init__ (self, level, pos = None, dirn = 1):
-        obj_module.Placeable.__init__(self, level, pos)
+        obj_module.OneTileObj.__init__(self, level, pos)
         self._last_pos = list(self.pos)
         self._last_dirn = self.dirn = dirn
         self.imgs = [pg.transform.rotate(self.img, angle)
@@ -161,6 +161,7 @@ class Frog (obj_module.Placeable):
         # destroys current item if any
         self.item = obj
         obj.grab()
+        self.level.update_held()
 
     def destroy (self):
         self.item = None
@@ -201,6 +202,7 @@ class Frog (obj_module.Placeable):
         # drop object
         self.item = None
         obj.drop(pos)
+        self.level.update_held()
 
     def _do_action (self, action, obj, pos):
         if action == 'inspect':
@@ -309,4 +311,4 @@ class Frog (obj_module.Placeable):
 
     def draw (self, screen):
         self.img = self.imgs[self.dirn]
-        obj_module.Placeable.draw(self, screen)
+        obj_module.OneTileObj.draw(self, screen)

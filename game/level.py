@@ -17,6 +17,8 @@ class Level (object):
         self.ident = ident
         self._changed = set()
         self._changed_rects = set()
+        self._held_sfc = pg.Surface(conf.TILE_SIZE).convert_alpha()
+        self._held_sfc.fill(conf.UI_BG)
         # level-specific
         self.init()
 
@@ -32,14 +34,15 @@ class Level (object):
                 os = (os,)
             objs[pos[0]][pos[1]] = [getattr(obj_module, obj)(self, pos)
                                     for obj in os]
-        self.msg = None
+        self.ui = {}
+        self.update_held()
         self.dirty = True
 
     def _click (self, evt):
         if evt.button in conf.ACTION_SETS:
-            if self.msg is not None:
-                self.change_rect(self.msg[1])
-                self.msg = None
+            if 'msg' in self.ui:
+                self.change_rect(self.ui['msg'][1])
+                del self.ui['msg']
             pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
             self.frog.action(conf.ACTION_SETS[evt.button],
                              self.objs[pos[0]][pos[1]], pos)
@@ -71,16 +74,26 @@ class Level (object):
         self.objs[pos[0]][pos[1]].remove(obj)
         self.change_tile(pos)
 
-    def say (self, msg):
-        pad = conf.MSG_PADDING
-        sfc = self.game.render_text(
-            'main', msg, conf.FONT_COLOUR, width = conf.RES[0],
-            bg = conf.FONT_BG, pad = pad
-        )[0]
-        assert self.msg is None, self.msg
-        rect = pg.Rect((0, 0), sfc.get_size())
+    def _add_ui (self, ident, sfc):
+        rect = pg.Rect(conf.UI_POS[ident], sfc.get_size())
         tiles = self.change_rect(rect)
-        self.msg = (sfc, rect, tiles)
+        if ident in self.ui:
+            self.change_rect(self.ui[ident][1])
+        self.ui[ident] = (sfc, rect, tiles)
+
+    def update_held (self):
+        sfc = self._held_sfc
+        if self.frog.item is not None:
+            sfc = sfc.copy()
+            self.frog.item.draw(sfc, (0, 0))
+        self._add_ui('held', sfc)
+
+    def say (self, msg):
+        sfc = self.game.render_text(
+            'main', msg, conf.FONT_COLOUR, width = conf.MSG_WIDTH,
+            bg = conf.UI_BG, pad = conf.MSG_PADDING
+        )[0]
+        self._add_ui('msg', sfc)
 
     def update (self):
         self.frog.update()
@@ -89,7 +102,7 @@ class Level (object):
         last = None
         # draw non-solid
         for o in objs:
-            if isinstance(o, obj_module.Placeable):
+            if isinstance(o, obj_module.OneTileObj):
                 if o.solid:
                     last = o
                 else:
@@ -101,10 +114,7 @@ class Level (object):
     def draw (self, screen):
         bg = self.game.img('bg.png')
         draw_objs = self._draw_objs
-        msg = self.msg is not None
-        if msg:
-            msg_sfc, msg_rect, msg_tiles = self.msg
-            msg_offset = (-msg_rect[0], -msg_rect[1])
+        ui = self.ui
         if self.dirty:
             self.dirty = False
             # background
@@ -115,8 +125,8 @@ class Level (object):
                     if objs:
                         draw_objs(screen, objs)
             # text
-            if msg:
-                screen.blit(msg_sfc, msg_rect)
+            for sfc, rect, tiles in ui.itervalues():
+                screen.blit(sfc, rect)
             rtn = True
         elif self._changed:
             objs = self.objs
@@ -132,8 +142,9 @@ class Level (object):
                 screen.blit(bg, (x, y), r)
                 draw_objs(screen, this_objs)
                 # text
-                if msg and tile in msg_tiles:
-                    screen.blit(msg_sfc, (x, y), r.move(msg_offset))
+                for sfc, rect, ui_tiles in ui.itervalues():
+                    if tile in ui_tiles:
+                        screen.blit(sfc, (x, y), r.move(-rect[0], -rect[1]))
             rtn = list(self._changed_rects)
         else:
             rtn = False

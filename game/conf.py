@@ -77,7 +77,7 @@ class Conf (object):
     KEYS_DIRN = (KEYS_LEFT, KEYS_UP, KEYS_RIGHT, KEYS_DOWN)
 
     ACTION_SETS = {1: ('inspect', 'move'), 2: ('drop', 'move'),
-                   3: ('use', 'grab', 'drop')}
+                   3: ('grab', 'use', 'drop')}
 
     # audio
     MUSIC_VOLUME = dd(.5) # per-backend
@@ -98,18 +98,20 @@ class Conf (object):
                     n = SOUNDS.get(ident, 0)
                     SOUNDS[ident] = n + 1
 
-    # UI
-    FONT_COLOUR = (255, 230, 200)
-    FONT_SIZE = 17
-    FONT_BG = (30, 20, 0, 150)
-    # per-backend, each a {key: value} dict to update fonthandler.Fonts with
-    REQUIRED_FONTS = dd({'main': ('JacquesFrancois.ttf', FONT_SIZE)})
-    MSG_PADDING = (10, 3, 10, 5)
-
     # gameplay
     FROG_MOVE_TIME = 5
     TILE_SIZE = (40, 40)
     LEVEL_SIZE = (15, 15)
+
+    # UI
+    # per-backend, each a {key: value} dict to update fonthandler.Fonts with
+    FONT_SIZE = 17
+    REQUIRED_FONTS = dd({'main': ('JacquesFrancois.ttf', FONT_SIZE)})
+    FONT_COLOUR = (255, 230, 200)
+    UI_BG = (30, 20, 0, 150)
+    UI_POS = {'msg': (0, 0), 'held': (RES[0] - TILE_SIZE[0], 0)}
+    MSG_WIDTH = RES[0] - TILE_SIZE[0] - 5
+    MSG_PADDING = (10, 3, 10, 5)
 
     # levels
     LEVELS = [{

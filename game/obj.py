@@ -1,6 +1,5 @@
 from conf import conf
 from util import ir
-import objhelpers
 
 #   object methods:
 # Obj.interact(frog): perform basic action on object
@@ -61,7 +60,7 @@ class Road (Obj):
                 level.add_obj(self, (i, j))
 
 
-class Placeable (Obj):
+class OneTileObj (Obj):
     def __init__ (self, level, pos = None):
         Obj.__init__(self, level, pos)
         self.img = level.game.img(self.__class__.__name__.lower() + '.png')
@@ -73,18 +72,18 @@ class Placeable (Obj):
         if not self.held:
             self.level.change_tile(self.pos)
 
-    def draw (self, screen):
-        x, y = self.pos
+    def draw (self, screen, pos = None):
+        x, y = self.pos if pos is None else pos
         sx, sy = conf.TILE_SIZE
         ox, oy = self._offset
         screen.blit(self.img, (x * sx + ox, y * sy + oy))
 
 
-class Holdable (Placeable):
+class Holdable (OneTileObj):
     holdable = True
 
     def __init__ (self, *args, **kw):
-        Placeable.__init__(self, *args, **kw)
+        OneTileObj.__init__(self, *args, **kw)
         self.held = False
         if kw.get('held', False):
             self.grab()
@@ -167,7 +166,7 @@ class Orange (Fruit):
 
 
 class AppleCore (Holdable):
-    solid = False
+    solid = True
     desc = 'The core of an apple I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
@@ -231,7 +230,7 @@ class OilyBlanket (Holdable):
         frog.drop(self, pos)
 
 
-class PuddleOfOil (Placeable):
+class PuddleOfOil (OneTileObj):
     solid = False
     desc = 'A puddle of slippery oil.  This would have posed a hazard to me ' \
            'before I realised I was self-aware.'
