@@ -14,7 +14,7 @@ class Conf (object):
 
     IDENT = 'latof'
     USE_SAVEDATA = False
-    USE_FONTS = False
+    USE_FONTS = True
 
     # save data
     SAVE = ()
@@ -75,6 +75,9 @@ class Conf (object):
     KEYS_UP = (pg.K_UP, pg.K_w, pg.K_z, pg.K_COMMA)
     KEYS_DOWN = (pg.K_DOWN, pg.K_s, pg.K_o)
     KEYS_DIRN = (KEYS_LEFT, KEYS_UP, KEYS_RIGHT, KEYS_DOWN)
+
+    ACTION_SETS = {1: ('inspect', 'move'), 2: ('grab', 'drop'),
+                   3: ('use', 'grab', 'drop')}
 
     # audio
     MUSIC_VOLUME = dd(.5) # per-backend

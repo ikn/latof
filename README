@@ -24,6 +24,8 @@ executable.
 
 left-click: move; inspect or interact with objects.
 right-click: pick up, drop or use objects.
+middle-click: drop or use objects (if you want to put an object on another,
+              right-click will try to use it instead)
 
     LICENSING
 

@@ -18,6 +18,7 @@ class Level (object):
         self.init()
 
     def init (self):
+        self.game.clear_caches()
         data = conf.LEVELS[self.ident]
         sx, sy = conf.LEVEL_SIZE
         self.objs = objs = [[[] for j in xrange(sx)] for i in xrange(sy)]
@@ -31,10 +32,10 @@ class Level (object):
         self.dirty = True
 
     def _click (self, evt):
-        if evt.button in (1, 3):
+        if evt.button in conf.ACTION_SETS:
             pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
-            self.frog.investigate(self.objs[pos[0]][pos[1]], pos,
-                                  evt.button == 3)
+            self.frog.action(conf.ACTION_SETS[evt.button],
+                             self.objs[pos[0]][pos[1]], pos)
 
     def change_tile (self, *pos):
         self._changed.update(tuple(p) for p in pos)

@@ -19,6 +19,27 @@ class Frog (obj_module.Placeable):
     def queue (self, f, *args, **kw):
         self._queue.append((f, args, kw))
 
+    def dist (self, p1, p2):
+        return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
+    def _next_to (self, obj, pos):
+        there = False
+        if self.dist(self.pos, pos) <= 1:
+            there = True
+        elif obj is not None:
+            all_objs = self.level.objs
+            sx, sy = conf.LEVEL_SIZE
+            for axis in (0, 1):
+                for d in (-1, 1):
+                    p = list(self.pos)
+                    p[axis] += d
+                    x, y = p
+                    if x >= 0 and y >= 0 and x < sx and y < sy \
+                        and obj in all_objs[x][y]:
+                        there = True
+                        break
+        return there
+
     def _face (self, dest):
         p = self.pos
         for i in (0, 1):
@@ -27,8 +48,8 @@ class Frog (obj_module.Placeable):
                 self.dirn = i + (2 if d > 0 else 0)
                 break
 
-    def dist (self, p1, p2):
-        return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+    def interact (self, frog):
+        self.level.say('it\'s me!  I think...')
 
     def _move (self, dest):
         self._face(dest)
@@ -88,7 +109,7 @@ class Frog (obj_module.Placeable):
         path.reverse()
         return path[1:] # first item will be the current position
 
-    def move (self, dest, objs):
+    def move (self, dest, objs = []):
         # remove any queued movement
         q = self._queue
         rm = []
@@ -134,71 +155,10 @@ class Frog (obj_module.Placeable):
         for pos in path:
             self.queue(self._move, pos)
 
-    def interact (self, frog):
-        self.level.say('it\'s me!  I think...')
-
-    def _investigate (self, obj, pos, use):
-        if use:
-            if self.item is not None:
-                if obj is None:
-                    self.drop()
-                else:
-                    self.item.use(self, obj, pos)
-            elif isinstance(obj, obj_module.Holdable):
-                self.grab(obj)
-            else:
-                self.level.say('I can\'t pick that up.')
-        else:
-            obj.interact(self)
-
-    def investigate (self, objs, pos, use, done = False):
-        # select solid obj or uppermost (last) obj
-        solid = [o for o in objs if o.solid]
-        if solid:
-            obj = solid[0]
-        elif objs:
-            obj = objs[-1]
-        else:
-            obj = None
-        if use and self.item is None and obj is None:
-            return
-        if obj is not None or use:
-            # check if in an adjacent tile
-            there = False
-            if self.dist(self.pos, pos) <= 1:
-                there = True
-            elif obj is not None:
-                all_objs = self.level.objs
-                sx, sy = conf.LEVEL_SIZE
-                for axis in (0, 1):
-                    for d in (-1, 1):
-                        p = list(self.pos)
-                        p[axis] += d
-                        x, y = p
-                        if x >= 0 and y >= 0 and x < sx and y < sy \
-                           and obj in all_objs[x][y]:
-                            there = True
-                            break
-            if there:
-                self._face(pos)
-                self._investigate(obj, pos, use)
-                return
-        if done:
-            self.level.say('I can\'t reach that.')
-        else:
-            # move there (if using or there's an object, treat dest as obstacle
-            # even if it's empty or non-solid)
-            self.move(pos, [pos] if use or obj is not None else [])
-            if obj is not None or use:
-                # queue another call here with done = True
-                self.queue(self.investigate, objs, pos, use, done = True)
-
     def grab (self, obj):
-        if self.item is None:
-            self.item = obj
-            obj.grab()
-        else:
-            self.level.say('I\'m already holding something.')
+        # destroys current item if any
+        self.item = obj
+        obj.grab()
 
     def destroy (self):
         self.item = None
@@ -228,7 +188,7 @@ class Frog (obj_module.Placeable):
                 p[ds_axis] += d_sideways
                 x, y = p
                 if x >= 0 and y >= 0 and x < sx and y < sy \
-                   and not objs[x][y]:
+                   and not any(o.solid for o in objs[x][y]):
                     success = True
                     break
             if success:
@@ -239,6 +199,97 @@ class Frog (obj_module.Placeable):
         # drop object
         self.item = None
         obj.drop(pos)
+
+    def _do_action (self, action, obj, pos):
+        if action == 'inspect':
+            obj.interact(self)
+        elif action == 'grab':
+            self.grab(obj)
+        elif action == 'drop':
+            self.drop()
+        elif action == 'use':
+            if obj is None:
+                name = 'ground'
+            else:
+                name = obj_module.name(obj).replace(' ', '_')
+            method = 'use_on_' + name
+            if not hasattr(self.item, method):
+                self.level.say('I won\'t gain anything from doing that')
+            else:
+                getattr(self.item, method)(self, obj, pos)
+        else:
+            assert False, 'unknown action \'{}\''.format(action)
+
+    def _action_with_pos (self, action, obj, pos, retry = False):
+        if self._next_to(obj, pos):
+            self._face(pos)
+            self._do_action(action, obj, pos)
+            return
+        if retry:
+            self.level.say('I can\'t reach that.')
+        else:
+            # move there first, treating dest as obstacle
+            self.move(pos, [pos])
+            # queue another call here with retry = True
+            self.queue(self._action_with_pos, action, obj, pos, True)
+
+    def action (self, actions, objs, pos):
+        # select solid obj or uppermost (last) obj
+        solid = [o for o in objs if o.solid]
+        if solid:
+            obj = solid[0]
+        elif objs:
+            obj = objs[-1]
+        else:
+            obj = None
+        # go through actions and do the first we can
+        actions = list(actions)
+        on_fail = []
+        while True:
+            if actions:
+                action = actions.pop(0)
+            else:
+                # nothing to do
+                if on_fail:
+                    self.level.say(on_fail[0])
+                    return
+            if action == 'inspect':
+                if obj is None:
+                    on_fail.append('There\'s nothing here.')
+                else:
+                    break
+            if action == 'move':
+                break
+            if action == 'grab':
+                if obj is None:
+                    on_fail.append('There\'s nothing to pick up.')
+                elif self.item is not None:
+                    on_fail.append('I\'m already holding something.')
+                elif not obj.holdable:
+                    on_fail.append('I can\'t pick that up.')
+                else:
+                    break
+            if action == 'drop':
+                if self.item is None:
+                    on_fail.append('I have nothing to drop.')
+                elif solid:
+                    on_fail.append('I can\'t put this there: something is ' \
+                                   'in the way.')
+                else:
+                    break
+            if action == 'use':
+                if self.item is None:
+                    on_fail.append('I have nothing to use.')
+                elif obj is None and not hasattr(self.item, 'use_on_ground'):
+                    on_fail.append('I can\'t use this on the ground.')
+                else:
+                    break
+        if action == 'move':
+            self.move(pos)
+        elif action in ('inspect', 'grab', 'drop', 'use'):
+            self._action_with_pos(action, obj, pos)
+        else:
+            assert False, 'unknown action \'{}\''.format(action)
 
     def update (self):
         if self._queue_t <= 0:

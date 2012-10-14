@@ -3,12 +3,13 @@ from util import ir
 import objhelpers
 
 #   object methods:
-# Obj.interact(): perform basic action on object
+# Obj.interact(frog): perform basic action on object
 # Holdable.grab(): pick up object
 # Holdable.drop(pos): drop held object at pos
-# Holdable.use(obj, pos): use held object on object obj at pos
+# Holdable.use_on_<name(obj)>(frog, obj, pos): use held object on obj at pos
 #   subclasses may implement event handlers
-# Holdable.on_grab()
+# Holdable.on_grab(): when this is grabbed; called before pos is set to None
+#                     (but it might already be None)
 # Holdable.on_drop(pos)
 
 def name (obj):
@@ -97,8 +98,8 @@ class Holdable (Placeable):
             # might not be on the ground
             if self.pos is not None:
                 self.level.rm_obj(self)
-            self.pos = None
             self.on_grab()
+            self.pos = None
 
     def on_drop (self, pos):
         pass
@@ -110,9 +111,6 @@ class Holdable (Placeable):
             self.pos = list(pos)
             self.on_drop(pos)
 
-    def use (self, frog, obj, pos):
-        self.level.say('I won\'t gain anything from doing that')
-
 
 class Edible (Holdable):
     # subclasses may set:
@@ -121,30 +119,29 @@ class Edible (Holdable):
     drop_obj = None
     msg = None
 
-    def use (self, frog, obj, pos):
-        level = self.level
-        if obj is frog:
-            frog.destroy()
-            if self.msg is None:
-                msg = 'I eat the {}.'.format(name(self))
-            else:
-                msg = self.msg
-            level.say(msg)
-            drop = self.drop_obj
-            if isinstance(drop, Obj):
-                frog.drop(drop)
-            elif drop is not None:
-                frog.drop(drop(level))
-        elif isinstance(obj, Basket):
-            msg = 'I put the {} back in the basket.'.format(name(self))
-            level.say(msg)
-            frog.destroy()
-            obj.add_fruit(self.__class__)
+    def use_on_frog (self, frog, obj, pos):
+        frog.destroy()
+        if self.msg is None:
+            msg = 'I eat the {}.'.format(name(self))
         else:
-            Holdable.use(self, frog, obj, pos)
+            msg = self.msg
+        self.level.say(msg)
+        drop = self.drop_obj
+        if isinstance(drop, Obj):
+            frog.drop(drop)
+        elif drop is not None:
+            frog.drop(drop(self.level))
 
 
 # level 0
+
+
+class Fruit (Edible):
+    def use_on_basket (self, frog, basket, pos):
+        msg = 'I put the {} back in the basket.'.format(name(self))
+        level.say(msg)
+        frog.destroy()
+        basket.add_fruit(self.__class__)
 
 
 class BananaPeel (Holdable):
@@ -153,7 +150,7 @@ class BananaPeel (Holdable):
            'littering, but it still makes me feel bad.'
 
 
-class Banana (Edible):
+class Banana (Fruit):
     desc = 'a yellow banana.'
     drop_obj = BananaPeel
 
@@ -164,7 +161,7 @@ class OrangePeel (Holdable):
            'littering, but it still makes me feel bad.'
 
 
-class Orange (Edible):
+class Orange (Fruit):
     desc = 'an orange.  (It\'s orange.)'
     drop_obj = OrangePeel
 
@@ -175,7 +172,7 @@ class AppleCore (Holdable):
            'littering, but it still makes me feel bad.'
 
 
-class Apple (Edible):
+class Apple (Fruit):
     desc = 'a red apple.'
     drop_obj = AppleCore
 
@@ -207,7 +204,10 @@ class Basket (Holdable):
         self.level.say(msg)
 
     def on_grab (self):
-        self.level.say('there\'s a puddle of oil under here...')
+        x, y = self.pos
+        objs = self.level.objs[x][y]
+        if any(isinstance(o, PuddleOfOil) for o in objs):
+            self.level.say('there\'s a puddle of oil under here...')
 
     def add_fruit (self, cls):
         self.fruit.insert(0, cls)
@@ -218,21 +218,17 @@ class PicnicBlanket (Holdable):
     solid = False
     desc = 'a picnic blanket.  I don\'t tend to use those.'
 
-    def use (self, frog, obj, pos):
-        if isinstance(obj, PuddleOfOil):
-            level = self.level
-            level.say('the blanket is now ruined.  I\'m such an animal.')
-            frog.destroy()
-            frog.grab(OilyBlanket(level))
+    def use_on_puddle_of_oil (self, frog, puddle, pos):
+        self.level.say('the blanket is now ruined.  I\'m such an animal.')
+        frog.grab(OilyBlanket(self.level))
 
 
 class OilyBlanket (Holdable):
     solid = False
     desc = 'the picnic blanket, now covered in oil.'
 
-    def use (self, frog, obj, pos):
-        if isinstance(obj, Road):
-            frog.drop(self, pos)
+    def use_on_road (self, frog, road, pos):
+        frog.drop(self, pos)
 
 
 class PuddleOfOil (Placeable):
