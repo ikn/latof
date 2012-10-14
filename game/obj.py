@@ -35,9 +35,10 @@ def article (obj):
 
 
 class Obj (object):
-    holdable = False
     desc = None
     solid = True
+    holdable = False
+    held = False
 
     def __init__ (self, level, pos = None):
         self.level = level
@@ -65,6 +66,11 @@ class Placeable (Obj):
         self.img = level.game.img(self.__class__.__name__.lower() + '.png')
         self._offset = [ir(float(t_s - i_s) / 2) for t_s, i_s in
                            zip(conf.TILE_SIZE, self.img.get_size())]
+
+    def set_img (self, img):
+        self.img = img
+        if not self.held:
+            self.level.change_tile(self.pos)
 
     def draw (self, screen):
         x, y = self.pos
@@ -116,18 +122,26 @@ class Edible (Holdable):
     msg = None
 
     def use (self, frog, obj, pos):
-        if self.held and obj is frog:
+        level = self.level
+        if obj is frog:
             frog.destroy()
             if self.msg is None:
                 msg = 'I eat the {}.'.format(name(self))
             else:
                 msg = self.msg
-            self.level.say(msg)
+            level.say(msg)
             drop = self.drop_obj
             if isinstance(drop, Obj):
                 frog.drop(drop)
             elif drop is not None:
-                frog.drop(drop(self.level))
+                frog.drop(drop(level))
+        elif isinstance(obj, Basket):
+            msg = 'I put the {} back in the basket.'.format(name(self))
+            level.say(msg)
+            frog.destroy()
+            obj.add_fruit(self.__class__)
+        else:
+            Holdable.use(self, frog, obj, pos)
 
 
 # level 0
@@ -169,32 +183,35 @@ class Apple (Edible):
 class Basket (Holdable):
     fruit = list(sum(zip(*([f] * 3 for f in (Apple, Banana, Orange))), ()))
 
+    def __init__ (self, level, *args, **kw):
+        Holdable.__init__(self, level, *args, **kw)
+        self._full_img = self.img
+        self._empty_img = level.game.img('emptybasket.png')
+
     def interact (self, frog):
-        msg = 'a basket of fruit.  '
-        if frog.item is None:
-            level = self.level
-            fruit = self.fruit.pop(0)
-            label = name(fruit)
-            msg += 'I take {} {}.'.format(article(label), label)
-            frog.grab(fruit(level))
-            if len(self.fruit) == 0:
-                # empty: replace with EmptyBasket
-                p = self.pos
-                level.rm_obj(self, p)
-                level.add_obj(EmptyBasket(level, p), p)
+        if self.fruit:
+            msg = 'a basket of fruit.  '
+            if frog.item is None:
+                level = self.level
+                fruit = self.fruit.pop(0)
+                label = name(fruit)
+                msg += 'I take {} {}.'.format(article(label), label)
+                frog.grab(fruit(level))
+                if len(self.fruit) == 0:
+                    # empty: replace image
+                    self.set_img(self._empty_img)
+            else:
+                msg += 'I would take something if my hands weren\'t full.'
         else:
-            msg += 'I would take something if my hands weren\'t full.'
+            msg = 'the basket\'s empty now.  What a mess I\'ve made.'
         self.level.say(msg)
 
     def on_grab (self):
         self.level.say('there\'s a puddle of oil under here...')
 
-
-class EmptyBasket (Holdable):
-    desc = 'the basket\'s empty now.  What a mess I\'ve made.'
-
-    def on_grab (self):
-        self.level.say('there\'s a puddle of oil under here...')
+    def add_fruit (self, cls):
+        self.fruit.insert(0, cls)
+        self.set_img(self._full_img)
 
 
 class PicnicBlanket (Holdable):

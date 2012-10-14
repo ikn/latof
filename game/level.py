@@ -36,18 +36,18 @@ class Level (object):
             self.frog.investigate(self.objs[pos[0]][pos[1]], pos,
                                   evt.button == 3)
 
-    def _change_tile (self, *pos):
+    def change_tile (self, *pos):
         self._changed.update(tuple(p) for p in pos)
 
     def add_obj (self, o, pos):
         self.objs[pos[0]][pos[1]].append(o)
-        self._change_tile(pos)
+        self.change_tile(pos)
 
     def rm_obj (self, obj, pos = None):
         if pos is None:
             pos = obj.pos
         self.objs[pos[0]][pos[1]].remove(obj)
-        self._change_tile(pos)
+        self.change_tile(pos)
 
     def say (self, msg):
         print msg

@@ -146,6 +146,8 @@ class Frog (obj_module.Placeable):
                     self.item.use(self, obj, pos)
             elif isinstance(obj, obj_module.Holdable):
                 self.grab(obj)
+            else:
+                self.level.say('I can\'t pick that up.')
         else:
             obj.interact(self)
 
@@ -158,6 +160,8 @@ class Frog (obj_module.Placeable):
             obj = objs[-1]
         else:
             obj = None
+        if use and self.item is None and obj is None:
+            return
         if obj is not None or use:
             # check if in an adjacent tile
             there = False
@@ -180,7 +184,7 @@ class Frog (obj_module.Placeable):
                 self._investigate(obj, pos, use)
                 return
         if done:
-            print 'couldn\'t move to object'
+            self.level.say('I can\'t reach that.')
         else:
             # move there (if using or there's an object, treat dest as obstacle
             # even if it's empty or non-solid)
