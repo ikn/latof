@@ -49,7 +49,7 @@ class Frog (obj_module.Placeable):
                 break
 
     def interact (self, frog):
-        self.level.say('it\'s me!  I think...')
+        self.level.say('It\'s me!  I think...')
 
     def _move (self, dest):
         self._face(dest)
@@ -109,7 +109,9 @@ class Frog (obj_module.Placeable):
         path.reverse()
         return path[1:] # first item will be the current position
 
-    def move (self, dest, objs = []):
+    def move (self, dest, objs = None):
+        if objs is None:
+            objs = []
         # remove any queued movement
         q = self._queue
         rm = []
@@ -118,7 +120,7 @@ class Frog (obj_module.Placeable):
                 rm.append(item)
         for item in rm:
             q.remove(item)
-        all_objs = objs
+        all_objs = list(objs)
         for x, col in enumerate(self.level.objs):
             for y, os in enumerate(col):
                 for o in os:
@@ -214,7 +216,7 @@ class Frog (obj_module.Placeable):
                 name = obj_module.name(obj).replace(' ', '_')
             method = 'use_on_' + name
             if not hasattr(self.item, method):
-                self.level.say('I won\'t gain anything from doing that')
+                self.level.say('I won\'t gain anything from doing that.')
             else:
                 getattr(self.item, method)(self, obj, pos)
         else:

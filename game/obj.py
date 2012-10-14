@@ -51,7 +51,7 @@ class Obj (object):
 
 
 class Road (Obj):
-    desc = 'a busy road.'
+    desc = 'A busy road.'
 
     def __init__ (self, level):
         self.level = level
@@ -139,41 +139,41 @@ class Edible (Holdable):
 class Fruit (Edible):
     def use_on_basket (self, frog, basket, pos):
         msg = 'I put the {} back in the basket.'.format(name(self))
-        level.say(msg)
+        self.level.say(msg)
         frog.destroy()
         basket.add_fruit(self.__class__)
 
 
 class BananaPeel (Holdable):
     solid = False
-    desc = 'the peel of a banana I ate.  Frogs can\'t be fined for ' \
+    desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
 
 class Banana (Fruit):
-    desc = 'a yellow banana.'
+    desc = 'A yellow banana.'
     drop_obj = BananaPeel
 
 
 class OrangePeel (Holdable):
     solid = False
-    desc = 'the peel of an orange I ate.  Frogs can\'t be fined for ' \
+    desc = 'The peel of an orange I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
 
 class Orange (Fruit):
-    desc = 'an orange.  (It\'s orange.)'
+    desc = 'An orange.  (It\'s orange.)'
     drop_obj = OrangePeel
 
 
 class AppleCore (Holdable):
     solid = False
-    desc = 'the core of an apple I ate.  Frogs can\'t be fined for ' \
+    desc = 'The core of an apple I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
 
 class Apple (Fruit):
-    desc = 'a red apple.'
+    desc = 'A red apple.'
     drop_obj = AppleCore
 
 
@@ -187,7 +187,7 @@ class Basket (Holdable):
 
     def interact (self, frog):
         if self.fruit:
-            msg = 'a basket of fruit.  '
+            msg = 'A basket of fruit.  '
             if frog.item is None:
                 level = self.level
                 fruit = self.fruit.pop(0)
@@ -200,14 +200,14 @@ class Basket (Holdable):
             else:
                 msg += 'I would take something if my hands weren\'t full.'
         else:
-            msg = 'the basket\'s empty now.  What a mess I\'ve made.'
+            msg = 'The basket\'s empty now.  What a mess I\'ve made.'
         self.level.say(msg)
 
     def on_grab (self):
         x, y = self.pos
         objs = self.level.objs[x][y]
         if any(isinstance(o, PuddleOfOil) for o in objs):
-            self.level.say('there\'s a puddle of oil under here...')
+            self.level.say('There\'s a puddle of oil under here...')
 
     def add_fruit (self, cls):
         self.fruit.insert(0, cls)
@@ -216,16 +216,16 @@ class Basket (Holdable):
 
 class PicnicBlanket (Holdable):
     solid = False
-    desc = 'a picnic blanket.  I don\'t tend to use those.'
+    desc = 'A picnic blanket.  I don\'t tend to use those.'
 
     def use_on_puddle_of_oil (self, frog, puddle, pos):
-        self.level.say('the blanket is now ruined.  I\'m such an animal.')
+        self.level.say('The blanket is now ruined.  I\'m such an animal.')
         frog.grab(OilyBlanket(self.level))
 
 
 class OilyBlanket (Holdable):
     solid = False
-    desc = 'the picnic blanket, now covered in oil.'
+    desc = 'The picnic blanket, now covered in oil.'
 
     def use_on_road (self, frog, road, pos):
         frog.drop(self, pos)
@@ -233,5 +233,5 @@ class OilyBlanket (Holdable):
 
 class PuddleOfOil (Placeable):
     solid = False
-    desc = 'a puddle of slippery oil.  This would have posed a hazard to me' \
+    desc = 'A puddle of slippery oil.  This would have posed a hazard to me ' \
            'before I realised I was self-aware.'

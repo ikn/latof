@@ -76,7 +76,7 @@ class Conf (object):
     KEYS_DOWN = (pg.K_DOWN, pg.K_s, pg.K_o)
     KEYS_DIRN = (KEYS_LEFT, KEYS_UP, KEYS_RIGHT, KEYS_DOWN)
 
-    ACTION_SETS = {1: ('inspect', 'move'), 2: ('grab', 'drop'),
+    ACTION_SETS = {1: ('inspect', 'move'), 2: ('drop', 'move'),
                    3: ('use', 'grab', 'drop')}
 
     # audio
@@ -98,9 +98,13 @@ class Conf (object):
                     n = SOUNDS.get(ident, 0)
                     SOUNDS[ident] = n + 1
 
-    # text rendering
+    # UI
+    FONT_COLOUR = (255, 230, 200)
+    FONT_SIZE = 17
+    FONT_BG = (30, 20, 0, 150)
     # per-backend, each a {key: value} dict to update fonthandler.Fonts with
-    REQUIRED_FONTS = dd({})
+    REQUIRED_FONTS = dd({'main': ('JacquesFrancois.ttf', FONT_SIZE)})
+    MSG_PADDING = (10, 3, 10, 5)
 
     # gameplay
     FROG_MOVE_TIME = 5

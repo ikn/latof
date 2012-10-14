@@ -1,3 +1,5 @@
+from math import ceil
+
 import pygame as pg
 
 from conf import conf
@@ -14,6 +16,7 @@ class Level (object):
         # variables
         self.ident = ident
         self._changed = set()
+        self._changed_rects = set()
         # level-specific
         self.init()
 
@@ -29,16 +32,34 @@ class Level (object):
                 os = (os,)
             objs[pos[0]][pos[1]] = [getattr(obj_module, obj)(self, pos)
                                     for obj in os]
+        self.msg = None
         self.dirty = True
 
     def _click (self, evt):
         if evt.button in conf.ACTION_SETS:
+            if self.msg is not None:
+                self.change_rect(self.msg[1])
+                self.msg = None
             pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
             self.frog.action(conf.ACTION_SETS[evt.button],
                              self.objs[pos[0]][pos[1]], pos)
 
-    def change_tile (self, *pos):
-        self._changed.update(tuple(p) for p in pos)
+    def change_tile (self, tile):
+        self._changed.add(tuple(tile))
+        sx, sy = conf.TILE_SIZE
+        self._changed_rects.add((sx * tile[0], sy * tile[1], sx, sy))
+
+    def change_rect (self, rect):
+        sz = conf.TILE_SIZE
+        x0, y0 = [int(x / s) for x, s in zip(rect[:2], sz)]
+        x1, y1 = [int(ceil(float(rect[i] + rect[i + 2]) / s))
+                  for i, s in enumerate(sz)]
+        tiles = sum(([(i, j) for j in xrange(y0, y1)] for i in xrange(x0, x1)),
+                    [])
+        self._changed.update(tiles)
+        r = (x0 * sz[0], y0 * sz[1], (x1 - x0) * sz[0], (y1 - y0) * sz[0])
+        self._changed_rects.add(r)
+        return tiles
 
     def add_obj (self, o, pos):
         self.objs[pos[0]][pos[1]].append(o)
@@ -51,7 +72,15 @@ class Level (object):
         self.change_tile(pos)
 
     def say (self, msg):
-        print msg
+        pad = conf.MSG_PADDING
+        sfc = self.game.render_text(
+            'main', msg, conf.FONT_COLOUR, width = conf.RES[0],
+            bg = conf.FONT_BG, pad = pad
+        )[0]
+        assert self.msg is None, self.msg
+        rect = pg.Rect((0, 0), sfc.get_size())
+        tiles = self.change_rect(rect)
+        self.msg = (sfc, rect, tiles)
 
     def update (self):
         self.frog.update()
@@ -72,29 +101,42 @@ class Level (object):
     def draw (self, screen):
         bg = self.game.img('bg.png')
         draw_objs = self._draw_objs
+        msg = self.msg is not None
+        if msg:
+            msg_sfc, msg_rect, msg_tiles = self.msg
+            msg_offset = (-msg_rect[0], -msg_rect[1])
         if self.dirty:
             self.dirty = False
-            self._changed = set()
+            # background
             screen.blit(bg, (0, 0))
+            # objects
             for col in self.objs:
                 for objs in col:
                     if objs:
                         draw_objs(screen, objs)
-            return True
+            # text
+            if msg:
+                screen.blit(msg_sfc, msg_rect)
+            rtn = True
         elif self._changed:
-            changed = self._changed
             objs = self.objs
-            self._changed = set()
             sx, sy = conf.TILE_SIZE
             rects = []
-            for x, y in changed:
+            for tile in self._changed:
+                x, y = tile
                 this_objs = objs[x][y]
                 x *= sx
                 y *= sy
-                r = (x, y, sx, sy)
+                r = pg.Rect(x, y, sx, sy)
                 rects.append(r)
                 screen.blit(bg, (x, y), r)
                 draw_objs(screen, this_objs)
-            return rects
+                # text
+                if msg and tile in msg_tiles:
+                    screen.blit(msg_sfc, (x, y), r.move(msg_offset))
+            rtn = list(self._changed_rects)
         else:
-            return False
+            rtn = False
+        self._changed = set()
+        self._changed_rects = set()
+        return rtn
