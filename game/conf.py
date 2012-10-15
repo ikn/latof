@@ -99,9 +99,12 @@ class Conf (object):
                     SOUNDS[ident] = n + 1
 
     # gameplay
-    FROG_MOVE_TIME = 5
     TILE_SIZE = (40, 40)
     LEVEL_SIZE = (15, 15)
+    FROG_MOVE_TIME = 5 # frames
+    INIT_FADE = [(0, 0, 0), (False, 1)]
+    RESTART_TIME = 1.5 # seconds
+    RESTART_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 1.5), (False, 2.5)]
 
     # UI
     # per-backend, each a {key: value} dict to update fonthandler.Fonts with

@@ -14,6 +14,7 @@ class Frog (obj_module.OneTileObj):
         self._queue_t = 0
         self._queue = []
         self.item = None
+        self.dead = False
         self.level.add_obj(self, self.pos)
 
     def queue (self, f, *args, **kw):
@@ -37,8 +38,9 @@ class Frog (obj_module.OneTileObj):
                     if x >= 0 and y >= 0 and x < sx and y < sy \
                         and obj in all_objs[x][y]:
                         there = True
+                        pos = tuple(p)
                         break
-        return there
+        return there, pos
 
     def _face (self, dest):
         p = self.pos
@@ -47,6 +49,16 @@ class Frog (obj_module.OneTileObj):
             if d:
                 self.dirn = i + (2 if d > 0 else 0)
                 break
+
+    def die (self):
+        if not self.dead:
+            self.dead = True
+            self.level.change_tile(self.pos)
+            self.img = self.level.game.img('deadfrog.png')
+            self.level.restart()
+
+    def on_road (self, road):
+        self.die()
 
     def interact (self, frog):
         self.level.say('It\'s me!  I think...')
@@ -225,9 +237,10 @@ class Frog (obj_module.OneTileObj):
             assert False, 'unknown action \'{}\''.format(action)
 
     def _action_with_pos (self, action, obj, pos, retry = False):
-        if self._next_to(obj, pos):
-            self._face(pos)
-            self._do_action(action, obj, pos)
+        next_to, new_pos = self._next_to(obj, pos)
+        if next_to:
+            self._face(new_pos)
+            self._do_action(action, obj, new_pos)
             return
         if retry:
             self.level.say('I can\'t reach that.')
@@ -238,6 +251,8 @@ class Frog (obj_module.OneTileObj):
             self.queue(self._action_with_pos, action, obj, pos, True)
 
     def action (self, actions, objs, pos):
+        if self.dead:
+            return
         # select solid obj or uppermost (last) obj
         solid = [o for o in objs if o.solid]
         if solid:
@@ -296,6 +311,8 @@ class Frog (obj_module.OneTileObj):
             assert False, 'unknown action \'{}\''.format(action)
 
     def update (self):
+        if self.dead:
+            return
         if self._queue_t <= 0:
             if self._queue:
                 f, args, kw = self._queue.pop(0)
@@ -310,5 +327,6 @@ class Frog (obj_module.OneTileObj):
             self._last_dirn = d
 
     def draw (self, screen):
-        self.img = self.imgs[self.dirn]
+        if not self.dead:
+            self.img = self.imgs[self.dirn]
         obj_module.OneTileObj.draw(self, screen)

@@ -3,6 +3,7 @@ from util import ir
 
 #   object methods:
 # Obj.interact(frog): perform basic action on object
+# Obj.on_road(road): object has been put on the road
 # Holdable.grab(): pick up object
 # Holdable.drop(pos): drop held object at pos
 # Holdable.use_on_<name(obj)>(frog, obj, pos): use held object on obj at pos
@@ -47,17 +48,6 @@ class Obj (object):
     def interact (self, frog):
         if self.desc is not None:
             self.level.say(self.desc)
-
-
-class Road (Obj):
-    desc = 'A busy road.'
-
-    def __init__ (self, level):
-        self.level = level
-        sx, sy = conf.TILE_SIZE
-        for i in xrange(600 / sx):
-            for j in xrange(200 / sy, 400 / sy):
-                level.add_obj(self, (i, j))
 
 
 class OneTileObj (Obj):
@@ -106,8 +96,8 @@ class Holdable (OneTileObj):
     def drop (self, pos):
         if self.pos is None:
             self.held = False
-            self.level.add_obj(self, pos)
             self.pos = list(pos)
+            self.level.add_obj(self, pos)
             self.on_drop(pos)
 
 
@@ -226,8 +216,8 @@ class OilyBlanket (Holdable):
     solid = False
     desc = 'The picnic blanket, now covered in oil.'
 
-    def use_on_road (self, frog, road, pos):
-        frog.drop(self, pos)
+    def on_road (self, road):
+        road.crash(self.pos)
 
 
 class PuddleOfOil (OneTileObj):

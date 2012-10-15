@@ -7,6 +7,16 @@ import obj as obj_module
 from frog import Frog
 
 
+class Road (object):
+    def __init__ (self, level):
+        self.level = level
+        sx, sy = conf.TILE_SIZE
+        self.rect = pg.Rect(0, 200 / sy, 600 / sx, 200 / sy)
+
+    def crash (self, pos):
+        print 'crash', pos
+
+
 class Level (object):
     def __init__ (self, game, event_handler, ident = 0):
         self.game = game
@@ -14,20 +24,22 @@ class Level (object):
             pg.MOUSEBUTTONDOWN: self._click
         })
         # variables
-        self.ident = ident
+        self._last_ident = self.ident = ident
         self._changed = set()
         self._changed_rects = set()
         self._held_sfc = pg.Surface(conf.TILE_SIZE).convert_alpha()
         self._held_sfc.fill(conf.UI_BG)
         # level-specific
+        self.game.linear_fade(*conf.INIT_FADE)
         self.init()
 
     def init (self):
-        self.game.clear_caches()
+        if self.ident != self._last_ident:
+            self.game.clear_caches()
         data = conf.LEVELS[self.ident]
         sx, sy = conf.LEVEL_SIZE
         self.objs = objs = [[[] for j in xrange(sx)] for i in xrange(sy)]
-        self._road = obj_module.Road(self)
+        self._road = Road(self)
         self.frog = Frog(self, data['frog pos'], data.get('frog dirn', 1))
         for pos, os in data['objs'].iteritems():
             if isinstance(os, basestring):
@@ -37,6 +49,10 @@ class Level (object):
         self.ui = {}
         self.update_held()
         self.dirty = True
+
+    def restart (self):
+        self.game.linear_fade(*conf.RESTART_FADE)
+        self.game.scheduler.add_timeout(self.init, seconds = conf.RESTART_TIME)
 
     def _click (self, evt):
         if evt.button in conf.ACTION_SETS:
@@ -64,9 +80,11 @@ class Level (object):
         self._changed_rects.add(r)
         return tiles
 
-    def add_obj (self, o, pos):
-        self.objs[pos[0]][pos[1]].append(o)
+    def add_obj (self, obj, pos):
+        self.objs[pos[0]][pos[1]].append(obj)
         self.change_tile(pos)
+        if self._road.rect.collidepoint(pos) and hasattr(obj, 'on_road'):
+            obj.on_road(self._road)
 
     def rm_obj (self, obj, pos = None):
         if pos is None:
