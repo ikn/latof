@@ -49,6 +49,13 @@ class Obj (object):
         if self.desc is not None:
             self.level.say(self.desc)
 
+    def replace (self, obj):
+        if issubclass(obj, Obj):
+            obj = obj(self.level)
+        self.level.rm_obj(self)
+        self.level.add_obj(obj, self.pos)
+        obj.pos = self.pos
+
 
 class OneTileObj (Obj):
     def __init__ (self, level, pos = None):
@@ -71,6 +78,12 @@ class OneTileObj (Obj):
 
 class Holdable (OneTileObj):
     holdable = True
+    # subclasses may set:
+    #   squash_obj: Obj instance or subclass to replace with when put on the
+    #               road
+    #   squash_desc: what to say when put on the road
+    squash_obj = None
+    squash_desc = None
 
     def __init__ (self, *args, **kw):
         OneTileObj.__init__(self, *args, **kw)
@@ -100,6 +113,25 @@ class Holdable (OneTileObj):
             self.level.add_obj(self, pos)
             self.on_drop(pos)
 
+    def replace (self, obj, drop_if_held = False):
+        if self.held:
+            frog = self.level.frog
+            frog.destroy()
+            if issubclass(obj, Obj):
+                obj = obj(self.level)
+            if drop_if_held:
+                frog.drop(obj)
+            else:
+                frog.grab(obj)
+        else:
+            Obj.replace(self, obj)
+
+    def on_road (self, frog, road):
+        if self.squash_desc is not None:
+            self.level.say(self.squash_desc)
+        if self.squash_obj is not None:
+            self.replace(self.squash_obj)
+
 
 class Edible (Holdable):
     # subclasses may set:
@@ -115,17 +147,15 @@ class Edible (Holdable):
         else:
             msg = self.msg
         self.level.say(msg)
-        drop = self.drop_obj
-        if isinstance(drop, Obj):
-            frog.drop(drop)
-        elif drop is not None:
-            frog.drop(drop(self.level))
+        if self.drop_obj is not None:
+            self.replace(self.drop_obj)
 
 
 # level 0
 
 
 class Fruit (Edible):
+    squash_desc = 'What a waste.  It wasn\'t even mine...'
     def use_on_basket (self, frog, basket, pos):
         msg = 'I put the {} back in the basket.'.format(name(self))
         self.level.say(msg)
@@ -138,10 +168,24 @@ class BananaPeel (Holdable):
     desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
+    def on_road (self, frog, road):
+        self.level.say('...Not sure why I thought that would do something.')
+
+
+class SquashedBanana (OneTileObj):
+    solid = False
+    desc = 'Messy.'
+
 
 class Banana (Fruit):
     desc = 'A yellow banana.'
     drop_obj = BananaPeel
+    squash_obj = SquashedBanana
+
+
+class SquashedOrange (OneTileObj):
+    solid = False
+    desc = 'Messy.'
 
 
 class OrangePeel (Holdable):
@@ -153,10 +197,15 @@ class OrangePeel (Holdable):
 class Orange (Fruit):
     desc = 'An orange.  (It\'s orange.)'
     drop_obj = OrangePeel
+    squash_obj = SquashedOrange
+
+
+class SquashedApple (OneTileObj):
+    solid = False
+    desc = 'Messy.'
 
 
 class AppleCore (Holdable):
-    solid = True
     desc = 'The core of an apple I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
@@ -164,9 +213,17 @@ class AppleCore (Holdable):
 class Apple (Fruit):
     desc = 'A red apple.'
     drop_obj = AppleCore
+    squash_obj = SquashedApple
+
+
+class SquashedBasket (OneTileObj):
+    solid = False
+    desc = 'I\'d rather not look in there.'
 
 
 class Basket (Holdable):
+    squash_obj = SquashedBasket
+    squash_desc = 'Being a frog, wreaking havoc...what a life.'
     fruit = list(sum(zip(*([f] * 3 for f in (Apple, Banana, Orange))), ()))
 
     def __init__ (self, level, *args, **kw):
@@ -209,14 +266,14 @@ class PicnicBlanket (Holdable):
 
     def use_on_puddle_of_oil (self, frog, puddle, pos):
         self.level.say('The blanket is now ruined.  I\'m such an animal.')
-        frog.grab(OilyBlanket(self.level))
+        self.replace(OilyBlanket)
 
 
 class OilyBlanket (Holdable):
     solid = False
     desc = 'The picnic blanket, now covered in oil.'
 
-    def on_road (self, road):
+    def on_road (self, frog, road):
         road.crash(self.pos)
 
 

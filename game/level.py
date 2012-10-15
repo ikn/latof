@@ -84,7 +84,7 @@ class Level (object):
         self.objs[pos[0]][pos[1]].append(obj)
         self.change_tile(pos)
         if self._road.rect.collidepoint(pos) and hasattr(obj, 'on_road'):
-            obj.on_road(self._road)
+            obj.on_road(self.frog, self._road)
 
     def rm_obj (self, obj, pos = None):
         if pos is None:
