@@ -156,9 +156,9 @@ class Edible (Holdable):
 
 class Fruit (Edible):
     squash_desc = 'What a waste.  It wasn\'t even mine...'
+
     def use_on_basket (self, frog, basket, pos):
-        msg = 'I put the {} back in the basket.'.format(name(self))
-        self.level.say(msg)
+        self.level.say('I put the {} back in the basket.'.format(name(self)))
         frog.destroy()
         basket.add_fruit(self.__class__)
 
@@ -221,26 +221,42 @@ class SquashedBasket (OneTileObj):
     desc = 'I\'d rather not look in there.'
 
 
+class LumpOfCoal (Holdable):
+    desc = 'Who wouldn\'t take a lump of coal on a picnic?'
+
+    def use_on_frog (self, frog, obj, pos):
+        self.level.say('I eat the coal.  Just kidding!  Don\'t eat coal, '
+                       'kids.')
+
+    def use_on_basket (self, frog, basket, pos):
+        self.level.say('I put the {} back in the basket.'.format(name(self)))
+        frog.destroy()
+        basket.add(self.__class__)
+
+
 class Basket (Holdable):
     squash_obj = SquashedBasket
     squash_desc = 'Being a frog, wreaking havoc...what a life.'
-    fruit = list(sum(zip(*([f] * 3 for f in (Apple, Banana, Orange))), ()))
 
     def __init__ (self, level, *args, **kw):
         Holdable.__init__(self, level, *args, **kw)
         self._full_img = self.img
         self._empty_img = level.game.img('emptybasket.png')
+        self.contents = [Apple, Banana, Orange, LumpOfCoal, Apple, Banana,
+                         Orange, Apple, Banana, Orange]
 
     def interact (self, frog):
-        if self.fruit:
+        if self.contents:
             msg = 'A basket of fruit.  '
             if frog.item is None:
                 level = self.level
-                fruit = self.fruit.pop(0)
-                label = name(fruit)
+                obj = self.contents.pop(0)
+                label = name(obj)
                 msg += 'I take {} {}.'.format(article(label), label)
-                frog.grab(fruit(level))
-                if len(self.fruit) == 0:
+                if issubclass(obj, LumpOfCoal):
+                    msg += '  Wait, what?'
+                frog.grab(obj(level))
+                if len(self.contents) == 0:
                     # empty: replace image
                     self.set_img(self._empty_img)
             else:
@@ -255,8 +271,8 @@ class Basket (Holdable):
         if any(isinstance(o, PuddleOfOil) for o in objs):
             self.level.say('There\'s a puddle of oil under here...')
 
-    def add_fruit (self, cls):
-        self.fruit.insert(0, cls)
+    def add (self, cls):
+        self.contents.insert(0, cls)
         self.set_img(self._full_img)
 
 
