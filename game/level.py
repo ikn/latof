@@ -59,7 +59,7 @@ class Overlay (object):
             screen.blit(self.sfc, self.rect)
         else:
             x, y = self.rect[:2]
-            screen.blit(self.sfc, r, r.move(-x, -y))
+            screen.blit(self.sfc, rect, rect.move(-x, -y))
 
 
 class Level (object):
@@ -101,8 +101,7 @@ class Level (object):
     def _click (self, evt):
         if evt.button in conf.ACTION_SETS:
             if 'msg' in self.ui:
-                self.change_rect(self.ui['msg'][1])
-                del self.ui['msg']
+                self.ui['msg'].hide()
             pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
             self.frog.action(conf.ACTION_SETS[evt.button],
                              self.objs[pos[0]][pos[1]], pos)
