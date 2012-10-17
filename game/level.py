@@ -6,15 +6,74 @@ from conf import conf
 import obj as obj_module
 from frog import Frog
 
+TILE_SIZE = conf.TILE_SIZE
+LEVEL_SIZE = conf.LEVEL_SIZE
+
+
+class Car (object):
+    def __init__ (self, road, img, pos):
+        self.road = road
+        self.img = img
+        self.rect = pg.Rect(pos, img.get_size())
+
+    def draw (self, screen):
+        screen.blit(self.img, self.rect)
+
 
 class Road (object):
     def __init__ (self, level):
         self.level = level
-        sx, sy = conf.TILE_SIZE
-        self.rect = pg.Rect(0, 200 / sy, 600 / sx, 200 / sy)
+        self.rect = pg.Rect(conf.ROAD_POS, conf.ROAD_SIZE)
+        self.tile_rect = pg.Rect(conf.TILE_ROAD_POS, conf.TILE_ROAD_SIZE)
+        self.tiles = level.rect_tiles(self.rect)
+        self.car_img = img = self.level.game.img(('car', '0.png'))
+        self.cars = [[] for i in xrange(len(conf.ROAD_LANES))]
+        self.moving = True
 
-    def crash (self, pos):
-        print 'crash', pos
+    def lane_start (self, lane):
+        # returns (x, y, dirn)
+        x0, y0, w, h = self.rect
+        lanes = conf.ROAD_LANES
+        iw, ih = self.car_img.get_size()
+        y = lanes[lane] - ih / 2
+        dirn = conf.ROAD_DIRN * (1 if lane < len(lanes) / 2 else -1)
+        x = x0 + (-iw if dirn == 1 else w)
+        return (x, y, dirn)
+
+    def add_car (self, lane):
+        x, y, dirn = self.lane_start(lane)
+        car = Car(self, self.car_img, (x, y))
+        self.cars[lane].append((dirn, car))
+
+    def crash (self, car):
+        print 'crash', car
+
+    def update (self):
+        gap = conf.CAR_GAP
+        w = self.rect[2]
+        for lane, cars in enumerate(self.cars):
+            if not cars:
+                self.add_car(lane)
+            # rm if OoB
+            dirn, car = cars[0]
+            r = car.rect
+            if dirn == 1:
+                rm = r[0] >= w
+            else:
+                rm = r[0] + r[2] <= 0
+            if rm:
+                cars.pop(0)
+            # add extra if needed
+            dirn, car = cars[-1]
+            r = car.rect
+            if dirn == 1:
+                add = r[0] >= gap
+            else:
+                add = r[0] + r[2] <= w - gap
+            if add:
+                self.add_car(lane)
+            for dirn, car in cars:
+                car.rect.move_ip(conf.CAR_SPEED * dirn, 0)
 
 
 class Overlay (object):
@@ -25,13 +84,26 @@ class Overlay (object):
         self.tiles = []
 
     def _update (self):
-        return self.level.change_rect(self.rect)
+        self.tiles = self.level.change_rect(self.rect)
+
+    def _set_rect (self, r1):
+        level = self.level
+        r0 = self.rect
+        self.rect = r1
+        r = r0.union(r1)
+        if r0[2] * r0[3] + r1[2] * r1[3] < r[2] * r[3]:
+            level.change_rect(r0)
+            self.tiles = level.change_rect(r1)
+        else:
+            level.change_rect(r)
+            self.tiles = level.rect_tiles(r)
 
     def show (self):
         os = self.level.overlays
         if self not in os:
             os.append(self)
-            self.tiles = self._update()
+            self._update()
+        return self
 
     def hide (self):
         os = self.level.overlays
@@ -42,24 +114,13 @@ class Overlay (object):
 
     def set_sfc (self, sfc):
         self.sfc = sfc
-        self._update()
+        self._set_rect(pg.Rect(pos, sfc.get_size()))
 
-    def move (dx, dy):
-        r0 = self.rect
-        self.rect = r1 = self.rect.move(dx, dy)
-        r = r0.union(r1)
-        if r0.w * r0.h + r1.w * r1.h > r.w * r.h:
-            self.level.change_rect(r0)
-            self.level.change_rect(r1)
-        else:
-            self.level.change_rect(r)
+    def move (self, dx, dy):
+        self._set_rect(self.rect.move(dx, dy))
 
-    def draw (self, screen, rect = None):
-        if rect is None:
-            screen.blit(self.sfc, self.rect)
-        else:
-            x, y = self.rect[:2]
-            screen.blit(self.sfc, rect, rect.move(-x, -y))
+    def draw (self, screen):
+        screen.blit(self.sfc, self.rect)
 
 
 class Level (object):
@@ -68,10 +129,10 @@ class Level (object):
         event_handler.add_event_handlers({
             pg.MOUSEBUTTONDOWN: self._click
         })
-        self._held_sfc = pg.Surface(conf.TILE_SIZE).convert_alpha()
+        self._held_sfc = pg.Surface(TILE_SIZE).convert_alpha()
         self._held_sfc.fill(conf.UI_BG)
         self._last_ident = self.ident = ident
-        self.game.linear_fade(*conf.INIT_FADE)
+        #self.game.linear_fade(*conf.INIT_FADE)
         self.init()
 
     def init (self):
@@ -83,9 +144,9 @@ class Level (object):
         if self.ident != self._last_ident:
             self.game.clear_caches()
         data = conf.LEVELS[self.ident]
-        sx, sy = conf.LEVEL_SIZE
+        sx, sy = LEVEL_SIZE
         self.objs = objs = [[[] for j in xrange(sx)] for i in xrange(sy)]
-        self._road = Road(self)
+        self.road = Road(self)
         self.frog = Frog(self, data['frog pos'], data.get('frog dirn', 1))
         for pos, os in data['objs'].iteritems():
             if isinstance(os, basestring):
@@ -102,29 +163,40 @@ class Level (object):
         if evt.button in conf.ACTION_SETS:
             if 'msg' in self.ui:
                 self.ui['msg'].hide()
-            pos = tuple(x / s for x, s in zip(evt.pos, conf.TILE_SIZE))
+            pos = tuple(x / s for x, s in zip(evt.pos, TILE_SIZE))
             self.frog.action(conf.ACTION_SETS[evt.button],
                              self.objs[pos[0]][pos[1]], pos)
 
     def change_tile (self, tile):
         self._changed.add(tuple(tile))
 
+    def rect_tiles (self, rect):
+        sx, sy = TILE_SIZE
+        x, y, w, h = rect
+        x0 = int(x / sx)
+        y0 = int(y / sy)
+        x1 = int(ceil(float(x + w) / sx))
+        y1 = int(ceil(float(y + h) / sy))
+        w, h = LEVEL_SIZE
+        tiles = []
+        for i in xrange(x0, x1):
+            if 0 <= i < w:
+                for j in xrange(y0, y1):
+                    if 0 <= j < h:
+                        tiles.append((i, j))
+        return tiles
+
     def change_rect (self, rect):
-        sz = conf.TILE_SIZE
-        x0, y0 = [int(x / s) for x, s in zip(rect[:2], sz)]
-        x1, y1 = [int(ceil(float(rect[i] + rect[i + 2]) / s))
-                  for i, s in enumerate(sz)]
-        tiles = sum(([(i, j) for j in xrange(y0, y1)] for i in xrange(x0, x1)),
-                    [])
+        tiles = self.rect_tiles(rect)
         self._changed.update(tiles)
-        self._changed_rects.append(pg.Rect(x0, y0, x1 - x0, y1 - y0))
+        self._changed_rects.append(rect)
         return tiles
 
     def add_obj (self, obj, pos):
         self.objs[pos[0]][pos[1]].append(obj)
         self.change_tile(pos)
-        if self._road.rect.collidepoint(pos) and hasattr(obj, 'on_road'):
-            obj.on_road(self.frog, self._road)
+        #if self.road.rect.collidepoint(pos) and hasattr(obj, 'on_crash'):
+            #obj.on_crash(self.frog, self.road)
 
     def rm_obj (self, obj, pos = None):
         if pos is None:
@@ -138,9 +210,7 @@ class Level (object):
         ui = self.ui
         if ident in ui:
             ui[ident].hide()
-        overlay = Overlay(self, sfc, pos)
-        ui[ident] = overlay
-        overlay.show()
+        ui[ident] = Overlay(self, sfc, pos).show()
 
     def _rm_ui (self, ident):
         ui = self.ui
@@ -165,6 +235,9 @@ class Level (object):
 
     def update (self):
         self.frog.update()
+        self.road.update()
+        if self.road.moving:
+            self._changed.update(self.road.tiles)
 
     def _draw_objs (self, screen, objs):
         last = None
@@ -183,6 +256,7 @@ class Level (object):
         bg = self.game.img('bg.png')
         draw_objs = self._draw_objs
         overlays = self.overlays
+        road = self.road
         if self.dirty:
             self.dirty = False
             # background
@@ -196,37 +270,48 @@ class Level (object):
             for overlay in overlays:
                 overlay.draw(screen)
             rtn = True
-        elif self._changed:
+        elif self._changed or road.moving:
             # draw changed tiles
             rects = self._changed_rects
+            in_road_rect = road.tile_rect.collidepoint
+            moving = road.moving
             objs = self.objs
-            sx, sy = conf.TILE_SIZE
+            sx, sy = TILE_SIZE
+            todo_os = set()
+            # draw bg and objs
+            if moving:
+                screen.blit(bg, road.rect, road.rect)
+                for x, y in road.tiles:
+                    draw_objs(screen, objs[x][y])
+                    for overlay in overlays:
+                        if (x, y) in overlay.tiles:
+                            todo_os.add(overlay)
             for tile in self._changed:
+                if moving and in_road_rect(tile):
+                    continue
                 x, y = tile
-                # add to changed rects
-                rects.append(pg.Rect(x, y, 1, 1))
                 this_objs = objs[x][y]
                 x *= sx
                 y *= sy
-                r = pg.Rect(x, y, sx, sy)
+                r = (x, y, sx, sy)
                 screen.blit(bg, (x, y), r)
                 draw_objs(screen, this_objs)
-                # overlays
+                # add to changed rects
+                rects.append(r)
+                # add overlays
                 for overlay in overlays:
                     if tile in overlay.tiles:
-                        overlay.draw(screen, r)
-            # remove changed rects contained in others and convert to real
-            # co-ordinates
-            rtn = []
-            for i, r in enumerate(rects):
-                success = True
-                for other in rects[i + 1:]:
-                    if other.contains(r):
-                        success = False
-                        break
-                if success:
-                    x, y, w, h = r
-                    rtn.append((x * sx, y * sy, w * sx, h * sy))
+                        todo_os.add(overlay)
+            if moving:
+                # draw cars
+                for cars in road.cars:
+                    for dirn, car in cars:
+                        car.draw(screen)
+                rects.append(road.rect)
+            # draw overlays
+            for overlay in todo_os:
+                overlay.draw(screen)
+            rtn = rects
         else:
             rtn = False
         self._changed = set()

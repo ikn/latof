@@ -1,6 +1,7 @@
 import pygame as pg
 
 from conf import conf
+from util import ir
 import obj as obj_module
 
 
@@ -57,7 +58,7 @@ class Frog (obj_module.OneTileObj):
             self.img = self.level.game.img('deadfrog.png')
             self.level.restart()
 
-    def on_road (self, frog, road):
+    def on_crash (self, frog, road, car):
         self.die()
 
     def interact (self, frog):
@@ -66,7 +67,7 @@ class Frog (obj_module.OneTileObj):
     def _move (self, dest):
         self._face(dest)
         self.pos = dest
-        return conf.FROG_MOVE_TIME
+        return ir(conf.FROG_MOVE_TIME * self.level.game.scheduler.timer.fps)
 
     def get_path (self, dest, all_objs, objs = ()):
         # get shortest path to dest

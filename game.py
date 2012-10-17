@@ -138,7 +138,7 @@ music: filenames for known music.
         backend.dirty = True
         i = get_backend_id(backend)
         # set some per-backend things
-        self.scheduler.timer.fps = conf.FPS[i]
+        self.scheduler.timer.set_fps(conf.FPS[i])
         if conf.USE_FONTS:
             fonts = self.fonts
             for k, v in conf.REQUIRED_FONTS[i].iteritems():
@@ -262,7 +262,7 @@ If the running backend is the last (root) one, exit the game.
 
 img(filename[, size], cache = True) -> surface
 
-data: a filename to load.
+filename: a filename to load.  Can be a tuple of path sections to join.
 size: scale the image.  Can be an (x, y) size, a rect (in which case its
       dimension is used), or a number to scale by.  If (x, y), either x or y
       can be None to scale to the other with aspect ratio preserved.
@@ -278,6 +278,10 @@ cache: whether to store this image in the cache if not already stored.
                     # rect
                     size = size[2:]
                 size = tuple(size)
+        # standardise path
+        if not isinstance(filename, basestring):
+            filename = os.path.join(*filename)
+        filename = os.path.normpath(filename)
         key = (filename, size)
         if key in self.img_cache:
             return self.img_cache[key]

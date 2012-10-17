@@ -3,7 +3,7 @@ from util import ir
 
 #   object methods:
 # Obj.interact(frog): perform basic action on object
-# Obj.on_road(road): object has been put on the road
+# Obj.on_crash(frog, road, car): object has been hit by a car
 # Holdable.grab(): pick up object
 # Holdable.drop(pos): drop held object at pos
 # Holdable.use_on_<name(obj)>(frog, obj, pos): use held object on obj at pos
@@ -60,7 +60,8 @@ class Obj (object):
 class OneTileObj (Obj):
     def __init__ (self, level, pos = None):
         Obj.__init__(self, level, pos)
-        self.img = level.game.img(self.__class__.__name__.lower() + '.png')
+        fn = ('obj', self.__class__.__name__.lower() + '.png')
+        self.img = level.game.img(fn)
         self._offset = [ir(float(t_s - i_s) / 2) for t_s, i_s in
                            zip(conf.TILE_SIZE, self.img.get_size())]
 
@@ -126,7 +127,7 @@ class Holdable (OneTileObj):
         else:
             Obj.replace(self, obj)
 
-    def on_road (self, frog, road):
+    def on_crash (self, frog, road, car):
         if self.squash_desc is not None:
             self.level.say(self.squash_desc)
         if self.squash_obj is not None:
@@ -168,7 +169,7 @@ class BananaPeel (Holdable):
     desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
-    def on_road (self, frog, road):
+    def on_crash (self, frog, road, car):
         self.level.say('...Not sure why I thought that would do something.')
 
 
@@ -241,7 +242,7 @@ class Basket (Holdable):
     def __init__ (self, level, *args, **kw):
         Holdable.__init__(self, level, *args, **kw)
         self._full_img = self.img
-        self._empty_img = level.game.img('emptybasket.png')
+        self._empty_img = level.game.img(('obj', 'emptybasket.png'))
         self.contents = [Apple, Banana, Orange, LumpOfCoal, Apple, Banana,
                          Orange, Apple, Banana, Orange]
 
@@ -280,17 +281,25 @@ class PicnicBlanket (Holdable):
     solid = False
     desc = 'A picnic blanket.  I don\'t tend to use those.'
 
-    def use_on_puddle_of_oil (self, frog, puddle, pos):
+    def dirty (self):
         self.level.say('The blanket is now ruined.  I\'m such an animal.')
         self.replace(OilyBlanket)
+
+    def use_on_puddle_of_oil (self, frog, puddle, pos):
+        self.dirty()
+
+    def on_drop (self, pos):
+        objs = self.level.objs[pos[0]][pos[1]]
+        if any(isinstance(o, PuddleOfOil) for o in objs):
+            self.dirty()
 
 
 class OilyBlanket (Holdable):
     solid = False
     desc = 'The picnic blanket, now covered in oil.'
 
-    def on_road (self, frog, road):
-        road.crash(self.pos)
+    def on_crash (self, frog, road, car):
+        road.crash(car)
 
 
 class PuddleOfOil (OneTileObj):

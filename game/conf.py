@@ -7,7 +7,7 @@ from glob import glob
 import pygame as pg
 
 import settings
-from util import dd
+from util import dd, ir
 
 
 class Conf (object):
@@ -100,10 +100,18 @@ class Conf (object):
 
     # gameplay
     TILE_SIZE = (40, 40)
-    LEVEL_SIZE = (15, 15)
-    FROG_MOVE_TIME = 5 # frames
+    LEVEL_SIZE = (RES[0] / TILE_SIZE[0], RES[1] / TILE_SIZE[1])
+    ROAD_POS = (0, 200)
+    ROAD_SIZE = (600, 200)
+    TILE_ROAD_POS = (0, 5)
+    TILE_ROAD_SIZE = (15, 5)
+    ROAD_LANES = (231, 275, 327, 375)
+    ROAD_DIRN = 1 # 1 for left, -1 for right
+    CAR_SPEED = 5
+    CAR_GAP = 50
+    FROG_MOVE_TIME = .1
     INIT_FADE = [(0, 0, 0), (False, 1)]
-    RESTART_TIME = 1.5 # seconds
+    RESTART_TIME = 1.5
     RESTART_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 1.5), (False, 2.5)]
 
     # UI
