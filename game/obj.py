@@ -3,7 +3,7 @@ from util import ir
 
 #   object methods:
 # Obj.interact(frog): perform basic action on object
-# Obj.on_crash(frog, road, car): object has been hit by a car
+# Obj.on_crash(frog, road): object has been hit by a car
 # Holdable.grab(): pick up object
 # Holdable.drop(pos): drop held object at pos
 # Holdable.use_on_<name(obj)>(frog, obj, pos): use held object on obj at pos
@@ -11,6 +11,8 @@ from util import ir
 # Holdable.on_grab(): when this is grabbed; called before pos is set to None
 #                     (but it might already be None)
 # Holdable.on_drop(pos)
+
+# every solid holdable object must become non-solid on crash
 
 def name (obj):
     if not isinstance(obj, type):
@@ -127,7 +129,7 @@ class Holdable (OneTileObj):
         else:
             Obj.replace(self, obj)
 
-    def on_crash (self, frog, road, car):
+    def on_crash (self, frog, road):
         if self.squash_desc is not None:
             self.level.say(self.squash_desc)
         if self.squash_obj is not None:
@@ -169,7 +171,7 @@ class BananaPeel (Holdable):
     desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
-    def on_crash (self, frog, road, car):
+    def on_crash (self, frog, road):
         self.level.say('...Not sure why I thought that would do something.')
 
 
@@ -298,8 +300,8 @@ class OilyBlanket (Holdable):
     solid = False
     desc = 'The picnic blanket, now covered in oil.'
 
-    def on_crash (self, frog, road, car):
-        road.crash(car)
+    def on_crash (self, frog, road):
+        road.crash(self.pos)
 
 
 class PuddleOfOil (OneTileObj):

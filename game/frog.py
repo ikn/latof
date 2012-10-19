@@ -58,7 +58,7 @@ class Frog (obj_module.OneTileObj):
             self.img = self.level.game.img('deadfrog.png')
             self.level.restart()
 
-    def on_crash (self, frog, road, car):
+    def on_crash (self, frog, road):
         self.die()
 
     def interact (self, frog):

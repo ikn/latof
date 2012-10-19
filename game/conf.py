@@ -107,8 +107,8 @@ class Conf (object):
     TILE_ROAD_SIZE = (15, 5)
     ROAD_LANES = (231, 275, 327, 375)
     ROAD_DIRN = 1 # 1 for left, -1 for right
-    CAR_SPEED = 5
-    CAR_GAP = 50
+    CAR_SPEED = 10
+    CAR_GAP = {'moving': 50, 'stopped': 5, 'crashed': 0}
     FROG_MOVE_TIME = .1
     INIT_FADE = [(0, 0, 0), (False, 1)]
     RESTART_TIME = 1.5
