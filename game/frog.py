@@ -244,8 +244,6 @@ class Frog (obj_module.OneTileObj):
                 self.level.say('I won\'t gain anything from doing that.')
             else:
                 getattr(self.item, method)(self, obj, pos)
-        else:
-            assert False, 'unknown action \'{}\''.format(action)
 
     def _action_with_pos (self, action, obj, pos, retry = False):
         next_to, new_pos = self._next_to(obj, pos)
@@ -318,8 +316,6 @@ class Frog (obj_module.OneTileObj):
             self.move(pos)
         elif action in ('inspect', 'grab', 'drop', 'use'):
             self._action_with_pos(action, obj, pos)
-        else:
-            assert False, 'unknown action \'{}\''.format(action)
 
     def update (self):
         if self.dead:

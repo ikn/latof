@@ -3,6 +3,7 @@ from random import randint
 import pygame as pg
 
 from conf import conf
+from obj import Obj
 
 
 class Road (object):
@@ -156,25 +157,38 @@ class Car (object):
     def _update_img (self):
         self.img = self._img if self.mode == 'moving' else self._crashed_img
 
-    def _add_objs (self):
-        # TODO
-        pass
+    def _add_objs (self, cls):
+        if self._objs:
+            self._rm_objs()
+        os = self._objs
+        level = self.road.level
+        add = level.add_obj
+        for pos in level.rect_tiles(self.rect):
+            obj = cls(level, pos)
+            add(obj, pos)
+            os.append(obj)
+
+    def _rm_objs (self):
+        rm = self.road.level.rm_obj
+        for o in self._objs:
+            rm(o)
+        self._objs = []
 
     def start (self):
         self.mode = 'moving'
         for o in self._objs:
             self.road.level.rm_obj(o)
-        self._objs = []
+        self._rm_objs()
         self._update_img()
 
     def stop (self):
         self.mode = 'stopped'
-        self._add_objs()
+        self._add_objs(StoppedCar)
         self._update_img()
 
     def crash (self):
         self.mode = 'crashed'
-        self._add_objs()
+        self._add_objs(CrashedCar)
         self._update_img()
 
     def set_mode (self, mode):
@@ -194,3 +208,11 @@ class Car (object):
 
     def draw (self, screen):
         screen.blit(self.img, self.rect)
+
+
+class StoppedCar (Obj):
+    desc = 'A stopped car.'
+
+
+class CrashedCar (Obj):
+    desc = 'A crashed car.'

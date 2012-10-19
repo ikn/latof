@@ -150,7 +150,8 @@ class Level (object):
 
     def add_obj (self, obj, pos):
         self.objs[pos[0]][pos[1]].append(obj)
-        self.change_tile(pos)
+        if isinstance(obj, obj_module.OneTileObj):
+            self.change_tile(pos)
         if self.road.tile_rect.collidepoint(pos) and \
            self.road.lane_moving(pos[1]) and hasattr(obj, 'on_crash'):
             obj.on_crash(self.frog, self.road)
@@ -159,7 +160,8 @@ class Level (object):
         if pos is None:
             pos = obj.pos
         self.objs[pos[0]][pos[1]].remove(obj)
-        self.change_tile(pos)
+        if isinstance(obj, obj_module.OneTileObj):
+            self.change_tile(pos)
 
     def _add_ui (self, ident, sfc, pos = None):
         if pos is None:

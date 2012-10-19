@@ -130,7 +130,7 @@ class Conf (object):
         'frog pos': (7, 12),
         'objs': {
             (3, 13): ('PuddleOfOil', 'Basket'),
-            (7, 11): 'PicnicBlanket'
+            (3, 12): 'PicnicBlanket'
         }
     }]
 
