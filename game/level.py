@@ -62,12 +62,14 @@ class Level (object):
     def __init__ (self, game, event_handler, ident = 0):
         self.game = game
         event_handler.add_event_handlers({
-            pg.MOUSEBUTTONDOWN: self._click
+            pg.MOUSEBUTTONDOWN: self._click,
+            pg.MOUSEMOTION: self._move_mouse
         })
         self._held_sfc = pg.Surface(TILE_SIZE).convert_alpha()
         self._held_sfc.fill(conf.UI_BG)
         self._last_ident = self.ident = ident
-        #self.game.linear_fade(*conf.INIT_FADE)
+        self._finished = False
+        self.game.linear_fade(*conf.INIT_FADE)
         self.init()
 
     def init (self):
@@ -91,8 +93,27 @@ class Level (object):
         self.update_held()
 
     def restart (self):
-        self.game.linear_fade(*conf.RESTART_FADE)
-        self.game.scheduler.add_timeout(self.init, seconds = conf.RESTART_TIME)
+        if not self._finished:
+            self.game.linear_fade(*conf.RESTART_FADE)
+            self.game.scheduler.add_timeout(self.init,
+                                            seconds = conf.RESTART_TIME)
+
+    def progress (self):
+        self.ident += 1
+        if self.ident >= len(conf.LEVELS):
+            self.end()
+        else:
+            self.init()
+
+    def end (self):
+        if not self._finished:
+            self._finished = True
+            self.game.linear_fade(False, ((0, 0, 0), 1), persist = True)
+            self.game.scheduler.add_timeout(self.game.quit_backend,
+                                            seconds = 1)
+
+    def _move_mouse (self, evt):
+        pass
 
     def _click (self, evt):
         if evt.button in conf.ACTION_SETS:
@@ -130,7 +151,8 @@ class Level (object):
     def add_obj (self, obj, pos):
         self.objs[pos[0]][pos[1]].append(obj)
         self.change_tile(pos)
-        if self.road.tile_rect.collidepoint(pos) and hasattr(obj, 'on_crash'):
+        if self.road.tile_rect.collidepoint(pos) and \
+           self.road.lane_moving(pos[1]) and hasattr(obj, 'on_crash'):
             obj.on_crash(self.frog, self.road)
 
     def rm_obj (self, obj, pos = None):

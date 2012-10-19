@@ -106,8 +106,9 @@ class Conf (object):
     TILE_ROAD_POS = (0, 5)
     TILE_ROAD_SIZE = (15, 5)
     ROAD_LANES = (231, 275, 327, 375)
+    ROAD_LANE_WIDTH = 40
     ROAD_DIRN = 1 # 1 for left, -1 for right
-    CAR_SPEED = 10
+    CAR_SPEED = 600 # pixels per second
     CAR_GAP = {'moving': 50, 'stopped': 5, 'crashed': 0}
     FROG_MOVE_TIME = .1
     INIT_FADE = [(0, 0, 0), (False, 1)]
@@ -129,7 +130,7 @@ class Conf (object):
         'frog pos': (7, 12),
         'objs': {
             (3, 13): ('PuddleOfOil', 'Basket'),
-            (3, 12): 'PicnicBlanket'
+            (7, 11): 'PicnicBlanket'
         }
     }]
 

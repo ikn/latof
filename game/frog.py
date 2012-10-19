@@ -67,15 +67,24 @@ class Frog (obj_module.OneTileObj):
     def _move (self, dest):
         self._face(dest)
         self.pos = dest
+        if dest[1] < self.level.road.tile_rect[1]:
+            self.level.progress()
         return ir(conf.FROG_MOVE_TIME * self.level.game.scheduler.timer.fps)
 
     def get_path (self, dest, all_objs, objs = ()):
         # get shortest path to dest
-        road = self.level.road.tiles
+        road_tiles = self.level.road.tiles
+        lane_moving = self.level.road.lane_moving
         sz = conf.LEVEL_SIZE
         pos = tuple(self.pos)
         dist = self.dist
-        weight = lambda pos: 1 + (pos in road) + 2 * (pos in all_objs)
+        def weight (pos):
+            w = 1
+            if pos in road_tiles:
+                w += 1 + lane_moving(pos[1])
+            if pos in all_objs:
+                w += 2
+            return w
         tot = dist(pos, dest)
         todo = {pos: (None, 0, tot, tot)}
         done = {}

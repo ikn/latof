@@ -5,58 +5,6 @@ import pygame as pg
 from conf import conf
 
 
-class Car (object):
-    def __init__ (self, road, img, crashed_img, pos):
-        self.road = road
-        self._img = img
-        self._crashed_img = crashed_img
-        self._objs = []
-        self.rect = pg.Rect(pos, img.get_size())
-        self.start()
-
-    def _update_img (self):
-        self.img = self._img if self.mode == 'moving' else self._crashed_img
-
-    def _add_objs (self):
-        # TODO
-        pass
-
-    def start (self):
-        self.mode = 'moving'
-        for o in self._objs:
-            self.road.level.rm_obj(o)
-        self._objs = []
-        self._update_img()
-
-    def stop (self):
-        self.mode = 'stopped'
-        self._add_objs()
-        self._update_img()
-
-    def crash (self):
-        self.mode = 'crashed'
-        self._add_objs()
-        self._update_img()
-
-    def set_mode (self, mode):
-        {
-            'moving': self.start,
-            'stopped': self.stop,
-            'crashed': self.crash
-        }[mode]()
-
-    def front (self, dirn):
-        r = self.rect
-        return (r[0] + r[2]) if dirn == 1 else r[0]
-
-    def back (self, dirn):
-        r = self.rect
-        return r[0] if dirn == 1 else (r[0] + r[2])
-
-    def draw (self, screen):
-        screen.blit(self.img, self.rect)
-
-
 class Road (object):
     def __init__ (self, level):
         self.level = level
@@ -125,6 +73,17 @@ class Road (object):
         # given lane will reach first
         return conf.TILE_SIZE[0] * (x + (self.lane_dirn(lane) == 1))
 
+    def lane_moving (self, y):
+        s = conf.TILE_SIZE[1]
+        y0 = y * s
+        y1 = y0 + s
+        h = conf.ROAD_LANE_WIDTH / 2
+        for lane, (lane_y, mode) in enumerate(zip(conf.ROAD_LANES,
+                                                  self._lane_mode)):
+            if mode == 'moving' and y0 < lane_y + h and y1 > lane_y - h:
+                return True
+        return False
+
     def start (self, pos):
         lane = self.pos_lane(pos[1])
         self._lane_mode[lane] = 'moving'
@@ -158,29 +117,80 @@ class Road (object):
             for car in cars:
                 if car.mode == 'moving':
                     r = car.rect
-                    v = conf.CAR_SPEED
-                    if lane_mode != 'moving':
-                        front = car.front(dirn)
-                        # stop before stop marker
-                        if current_mode == 'moving':
-                            stop = stop_pos
-                            new_mode = lane_mode
-                        else:
-                            stop = front + v
-                        # stop before next car
-                        if prev is not None:
-                            this_stop = prev.back(dirn) - \
-                                        dirn * conf.CAR_GAP[lane_mode]
-                            stop = dirn * min(dirn * stop, dirn * this_stop)
-                        new_v = dirn * (stop - front)
-                        if 0 <= new_v < v:
-                            current_mode = new_mode
-                            # velocity reduced: we're stopping
-                            v = new_v
-                            if v == 0:
-                                # to make sure we only stop if every car in
-                                # front has stopped - in case this car is
-                                # faster than the one in front
-                                car.set_mode(lane_mode)
+                    v = conf.CAR_SPEED / self.level.game.scheduler.timer.fps
+                    front = car.front(dirn)
+                    # stop before stop marker
+                    if lane_mode != 'moving' and current_mode == 'moving':
+                        stop = stop_pos
+                        new_mode = lane_mode
+                    else:
+                        stop = front + v
+                    # stop before next car
+                    if prev is not None:
+                        this_stop = prev.back(dirn) - \
+                                    dirn * conf.CAR_GAP[lane_mode]
+                        stop = dirn * min(dirn * stop, dirn * this_stop)
+                    new_v = dirn * (stop - front)
+                    if 0 <= new_v < v:
+                        current_mode = new_mode
+                        # velocity reduced: we're stopping
+                        v = new_v
+                        if v == 0:
+                            # to make sure we only stop if every car in
+                            # front has stopped - in case this car is
+                            # faster than the one in front
+                            car.set_mode(lane_mode)
                     r.move_ip(v * dirn, 0)
                 prev = car
+
+
+class Car (object):
+    def __init__ (self, road, img, crashed_img, pos):
+        self.road = road
+        self._img = img
+        self._crashed_img = crashed_img
+        self._objs = []
+        self.rect = pg.Rect(pos, img.get_size())
+        self.start()
+
+    def _update_img (self):
+        self.img = self._img if self.mode == 'moving' else self._crashed_img
+
+    def _add_objs (self):
+        # TODO
+        pass
+
+    def start (self):
+        self.mode = 'moving'
+        for o in self._objs:
+            self.road.level.rm_obj(o)
+        self._objs = []
+        self._update_img()
+
+    def stop (self):
+        self.mode = 'stopped'
+        self._add_objs()
+        self._update_img()
+
+    def crash (self):
+        self.mode = 'crashed'
+        self._add_objs()
+        self._update_img()
+
+    def set_mode (self, mode):
+        {
+            'moving': self.start,
+            'stopped': self.stop,
+            'crashed': self.crash
+        }[mode]()
+
+    def front (self, dirn):
+        r = self.rect
+        return (r[0] + r[2]) if dirn == 1 else r[0]
+
+    def back (self, dirn):
+        r = self.rect
+        return r[0] if dirn == 1 else (r[0] + r[2])
+
+    def draw (self, screen):
+        screen.blit(self.img, self.rect)
