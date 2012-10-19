@@ -55,7 +55,7 @@ class Frog (obj_module.OneTileObj):
         if not self.dead:
             self.dead = True
             self.level.change_tile(self.pos)
-            self.img = self.level.game.img('deadfrog.png')
+            self.img = self.level.game.img(('obj', 'deadfrog.png'))
             self.level.restart()
 
     def on_crash (self, frog, road):
@@ -71,10 +71,11 @@ class Frog (obj_module.OneTileObj):
 
     def get_path (self, dest, all_objs, objs = ()):
         # get shortest path to dest
+        road = self.level.road.tiles
         sz = conf.LEVEL_SIZE
         pos = tuple(self.pos)
         dist = self.dist
-        weight = lambda pos: 1 + (pos in all_objs)
+        weight = lambda pos: 1 + (pos in road) + 2 * (pos in all_objs)
         tot = dist(pos, dest)
         todo = {pos: (None, 0, tot, tot)}
         done = {}
