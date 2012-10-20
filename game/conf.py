@@ -101,6 +101,11 @@ class Conf (object):
     # gameplay
     TILE_SIZE = (40, 40)
     LEVEL_SIZE = (RES[0] / TILE_SIZE[0], RES[1] / TILE_SIZE[1])
+    FROG_MOVE_TIME = .1
+    INIT_FADE = [(0, 0, 0), (False, 1)]
+    RESTART_TIME = 1.5
+    RESTART_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 1.5), (False, 2.5)]
+    # road
     ROAD_POS = (0, 200)
     ROAD_SIZE = (600, 200)
     TILE_ROAD_POS = (0, 5)
@@ -109,11 +114,13 @@ class Conf (object):
     ROAD_LANE_WIDTH = 40
     ROAD_DIRN = 1 # 1 for left, -1 for right
     CAR_SPEED = 600 # pixels per second
+    CAR_SPEED_JITTER = 60 # mean variation of car speed (pixels per second)
     CAR_GAP = {'moving': 50, 'stopped': 5, 'crashed': 0}
-    FROG_MOVE_TIME = .1
-    INIT_FADE = [(0, 0, 0), (False, 1)]
-    RESTART_TIME = 1.5
-    RESTART_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 1.5), (False, 2.5)]
+    # crash
+    CRASH_POS_JITTER = 50 # mean pixels displaced
+    CRASH_FOLLOWTHROUGH = 30 # pixels moved past crash point
+    CRASH_TIME = 2
+    CRASH_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 3), (False, 4)]
 
     # UI
     # per-backend, each a {key: value} dict to update fonthandler.Fonts with
@@ -130,7 +137,7 @@ class Conf (object):
         'frog pos': (7, 12),
         'objs': {
             (3, 13): ('PuddleOfOil', 'Basket'),
-            (3, 12): 'PicnicBlanket'
+            (3, 12): 'OilyBlanket'
         }
     }]
 

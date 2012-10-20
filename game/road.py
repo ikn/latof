@@ -1,8 +1,9 @@
-from random import randint
+from random import randint, expovariate as expo
 
 import pygame as pg
 
 from conf import conf
+from util import ir, randsgn
 from obj import Obj
 
 
@@ -15,7 +16,7 @@ class Road (object):
         self.car_img = self.level.game.img(('car', '0.png'))
         self.car_crashed_img = self.car_img
         n_lanes = len(conf.ROAD_LANES)
-        self.cars = [(self.lane_dirn(i), []) for i in xrange(n_lanes)]
+        self.cars = [[self.lane_dirn(i), []] for i in xrange(n_lanes)]
         self._modes = ['moving'] * n_lanes
         self._stopping = [False] * n_lanes
         for lane in xrange(n_lanes):
@@ -37,6 +38,7 @@ class Road (object):
             return rect[0] + rect[2] <= 0
 
     def add_car (self, lane, x = None, mode = 'moving'):
+        # x is the front of the car
         x0, y0, w, h = self.rect
         dirn, cars = self.cars[lane]
         iw, ih = self.car_img.get_size()
@@ -54,14 +56,23 @@ class Road (object):
                     mn = 1 - iw
                     mx = gap
                 x = randint(mn, mx)
+        elif dirn == 1:
+            x -= iw
         y = conf.ROAD_LANES[lane] - ih / 2
 
         cars.append(Car(self, self.car_img, self.car_crashed_img, (x, y)))
 
-    def fill_lane (self, lane, mode = 'moving'):
+    def fill_lane (self, lane, mode = 'moving', x = None):
         dirn, cars = self.cars[lane]
-        while not cars or self.needs_car(dirn, cars[-1].rect):
+        if not cars:
+            self.add_car(lane, x, mode)
+        while self.needs_car(dirn, cars[-1].rect):
             self.add_car(lane, mode = mode)
+
+    def clear_lane (self, lane):
+        for car in self.cars[lane][1]:
+            car.destroy()
+        self.cars[lane][1] = []
 
     def pos_lanes (self, y):
         s = conf.TILE_SIZE[1]
@@ -72,9 +83,9 @@ class Road (object):
             if y0 < lane_y + h and y1 > lane_y - h:
                 yield lane
 
-    def _tile_x_front (self, lane, x):
+    def _tile_x_back (self, lane, x):
         # returns the side of the tile with x-axis position x that cars in the
-        # given lane will reach first
+        # given lane will reach last
         return conf.TILE_SIZE[0] * (x + (self.lane_dirn(lane) == 1))
 
     def lane_moving (self, y):
@@ -85,7 +96,6 @@ class Road (object):
         return False
 
     def start (self, pos):
-        # calls guarantee that they called stop or crash at this position
         modes = self._modes
         stopping = self._stopping
         for lane in self.pos_lanes(pos[1]):
@@ -97,18 +107,80 @@ class Road (object):
         stopping = self._stopping
         for lane in self.pos_lanes(pos[1]):
             modes[lane] = 'stopped'
-            stopping[lane] = self._tile_x_front(lane, pos[0])
+            stopping[lane] = self._tile_x_back(lane, pos[0])
 
-    def crash (self, pos):
-        return
-        print 'crash', pos
+    def _jitter_clamp (self, x, lb, ub, lane):
+        s = conf.TILE_SIZE[1]
+        lb = s * lb + 1
+        ub = s * (ub + 1) - 1
+        inv_mean = 1. / conf.CRASH_POS_JITTER
+        x = min(max(ir(x + randsgn() * expo(inv_mean)), lb), ub)
+        tile_x = ((x - 1) if lane < 2 else x) / s
+        return (tile_x, x)
+
+    def _update_bds (self, bds, lb, ub, *lanes):
+        for lane in lanes:
+            old_lb, old_ub = bds[lane]
+            old_lb = max(old_lb, lb)
+            old_ub = min(old_ub, ub)
+            bds[lane] = (old_lb, old_ub)
+
+    def _crash (self, pos):
+        # generate stop positions (front-most tiles)
+        n_lanes = len(conf.ROAD_LANES)
+        tile_stop = [0] * n_lanes
+        stop = [0] * n_lanes
+        origin = next(self.pos_lanes(pos[1]))
+        bounds = [(0, 13), (0, 12), (2, 14), (1, 14)]
+        # prepare for bounds changing
+        lane_overlaps = [set() for i in xrange(n_lanes)]
+        r = self.tile_rect
+        for y in xrange(r[1], r[1] + r[3]):
+            lanes = list(self.pos_lanes(y))
+            for lane1 in lanes:
+                for lane2 in lanes:
+                    if lane1 != lane2:
+                        lane_overlaps[lane1].add(lane2)
+        # set origin lane position
+        x = conf.TILE_SIZE[0] * pos[0] + \
+            conf.CRASH_FOLLOWTHROUGH * self.lane_dirn(origin)
+        tile_stop[origin], stop[origin] = self._jitter_clamp(
+            x, *bounds[origin], lane = origin
+        )
+        # set other lane positions
+        for d in (-1, 1):
+            lane = origin + d
+            x = stop[origin]
+            while 0 <= lane <= 3:
+                lb, ub = bounds[lane]
+                if d == 1 and lane == 2 and origin <= 1:
+                    lb = max(lb, tile_stop[1] + 2)
+                    self._update_bds(bounds, lb, ub, *lane_overlaps[lane])
+                elif d == -1 and lane == 1 and origin >= 2:
+                    ub = min(ub, tile_stop[2] - 2)
+                    self._update_bds(bounds, lb, ub, *lane_overlaps[lane])
+                tile_stop[lane], x = self._jitter_clamp(x, lb, ub, lane)
+                stop[lane] = x
+                lane += d
+        # crash everything
         modes = self._modes
         stopping = self._stopping
-        for lane in self.pos_lanes(pos[1]):
+        for lane, x in zip(xrange(n_lanes), stop):
+            self.clear_lane(lane)
             modes[lane] = 'crashed'
-            stopping[lane] = 200
+            stopping[lane] = x
+            self.fill_lane(lane, 'crashed', x)
+
+    def crash (self, pos):
+        game = self.level.game
+        game.linear_fade(*conf.CRASH_FADE)
+        game.scheduler.add_timeout(self._crash, (pos,),
+                                   seconds = conf.CRASH_TIME)
 
     def update (self):
+        fps = self.level.game.scheduler.timer.fps
+        speed = ir(float(conf.CAR_SPEED) / fps)
+        speed_jitter = float(conf.CAR_SPEED_JITTER) / fps
         for lane, (lane_mode, stopping, (dirn, cars)) in \
             enumerate(zip(self._modes, self._stopping, self.cars)):
             # remove OoB cars
@@ -126,7 +198,8 @@ class Road (object):
                 if car.mode == 'moving':
                     r = car.rect
                     front = car.front(dirn)
-                    v = conf.CAR_SPEED / self.level.game.scheduler.timer.fps
+                    v = speed + max(1 - speed,
+                                    randsgn() * ir(expo(1 / speed_jitter)))
                     stop = front + dirn * v
                     # stop before stop marker
                     if lane_mode != 'moving' and current_mode == 'moving':
@@ -163,6 +236,14 @@ class Car (object):
         self._objs = []
         self.rect = pg.Rect(pos, img.get_size())
         self.mode = 'moving'
+
+    def front (self, dirn):
+        r = self.rect
+        return (r[0] + r[2]) if dirn == 1 else r[0]
+
+    def back (self, dirn):
+        r = self.rect
+        return r[0] if dirn == 1 else (r[0] + r[2])
 
     def _update_img (self):
         self.img = self._crashed_img if self.mode == 'crashed' else self._img
@@ -211,13 +292,8 @@ class Car (object):
             'crashed': self.crash
         }[mode]()
 
-    def front (self, dirn):
-        r = self.rect
-        return (r[0] + r[2]) if dirn == 1 else r[0]
-
-    def back (self, dirn):
-        r = self.rect
-        return r[0] if dirn == 1 else (r[0] + r[2])
+    def destroy (self):
+        self._rm_objs()
 
     def draw (self, screen):
         screen.blit(self.img, self.rect)
