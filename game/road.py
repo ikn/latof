@@ -16,8 +16,8 @@ class Road (object):
         self.car_crashed_img = self.car_img
         n_lanes = len(conf.ROAD_LANES)
         self.cars = [(self.lane_dirn(i), []) for i in xrange(n_lanes)]
-        self._lane_mode = ['moving'] * n_lanes
-        self._lane_stop_pos = [set() for i in xrange(n_lanes)]
+        self._modes = ['moving'] * n_lanes
+        self._stopping = [False] * n_lanes
         for lane in xrange(n_lanes):
             self.fill_lane(lane)
 
@@ -37,7 +37,6 @@ class Road (object):
             return rect[0] + rect[2] <= 0
 
     def add_car (self, lane, x = None, mode = 'moving'):
-        # mode is conf.CAR_GAP key
         x0, y0, w, h = self.rect
         dirn, cars = self.cars[lane]
         iw, ih = self.car_img.get_size()
@@ -62,12 +61,16 @@ class Road (object):
     def fill_lane (self, lane, mode = 'moving'):
         dirn, cars = self.cars[lane]
         while not cars or self.needs_car(dirn, cars[-1].rect):
-            self.add_car(lane)
+            self.add_car(lane, mode = mode)
 
-    def pos_lane (self, y):
-        y *= conf.TILE_SIZE[1]
-        return sorted((abs(l - y), i)
-                      for i, l in enumerate(conf.ROAD_LANES))[0][1]
+    def pos_lanes (self, y):
+        s = conf.TILE_SIZE[1]
+        y0 = y * s
+        y1 = y0 + s
+        h = conf.ROAD_LANE_WIDTH / 2
+        for lane, lane_y in enumerate(conf.ROAD_LANES):
+            if y0 < lane_y + h and y1 > lane_y - h:
+                yield lane
 
     def _tile_x_front (self, lane, x):
         # returns the side of the tile with x-axis position x that cars in the
@@ -75,37 +78,39 @@ class Road (object):
         return conf.TILE_SIZE[0] * (x + (self.lane_dirn(lane) == 1))
 
     def lane_moving (self, y):
-        s = conf.TILE_SIZE[1]
-        y0 = y * s
-        y1 = y0 + s
-        h = conf.ROAD_LANE_WIDTH / 2
-        for lane, (lane_y, mode) in enumerate(zip(conf.ROAD_LANES,
-                                                  self._lane_mode)):
-            if mode == 'moving' and y0 < lane_y + h and y1 > lane_y - h:
+        stopping = self._stopping
+        for lane in self.pos_lanes(y):
+            if stopping[lane] is False:
                 return True
         return False
 
     def start (self, pos):
-        lane = self.pos_lane(pos[1])
-        self._lane_mode[lane] = 'moving'
-        stop_pos = self._lane_stop_pos[lane]
-        x = self._tile_x_front(lane, pos[0])
-        if x in stop_pos:
-            stop_pos.remove(x)
+        # calls guarantee that they called stop or crash at this position
+        modes = self._modes
+        stopping = self._stopping
+        for lane in self.pos_lanes(pos[1]):
+            modes[lane] = 'moving'
+            stopping[lane] = False
 
     def stop (self, pos):
-        lane = self.pos_lane(pos[1])
-        self._lane_mode[lane] = 'stopped'
-        self._lane_stop_pos[lane].add(self._tile_x_front(lane, pos[0]))
+        modes = self._modes
+        stopping = self._stopping
+        for lane in self.pos_lanes(pos[1]):
+            modes[lane] = 'stopped'
+            stopping[lane] = self._tile_x_front(lane, pos[0])
 
     def crash (self, pos):
-        self.stop(pos)
-        #print 'crash', pos, pos[1] - self.tile_rect[1]
+        return
+        print 'crash', pos
+        modes = self._modes
+        stopping = self._stopping
+        for lane in self.pos_lanes(pos[1]):
+            modes[lane] = 'crashed'
+            stopping[lane] = 200
 
     def update (self):
-        for lane, (lane_mode, stop_pos, (dirn, cars)) in \
-            enumerate(zip(self._lane_mode, self._lane_stop_pos, self.cars)):
-            stop_pos = max(stop_pos) if stop_pos else None
+        for lane, (lane_mode, stopping, (dirn, cars)) in \
+            enumerate(zip(self._modes, self._stopping, self.cars)):
             # remove OoB cars
             if cars and self.oob(dirn, cars[0].rect):
                 cars.pop(0)
@@ -116,46 +121,51 @@ class Road (object):
             prev = None
             new_mode = current_mode = 'moving'
             for car in cars:
+                if lane_mode == 'moving':
+                    car.start()
                 if car.mode == 'moving':
                     r = car.rect
-                    v = conf.CAR_SPEED / self.level.game.scheduler.timer.fps
                     front = car.front(dirn)
+                    v = conf.CAR_SPEED / self.level.game.scheduler.timer.fps
+                    stop = front + dirn * v
                     # stop before stop marker
                     if lane_mode != 'moving' and current_mode == 'moving':
-                        stop = stop_pos
+                        if dirn * front <= dirn * stopping:
+                            stop = stopping
                         new_mode = lane_mode
-                    else:
-                        stop = front + v
                     # stop before next car
                     if prev is not None:
                         this_stop = prev.back(dirn) - \
-                                    dirn * conf.CAR_GAP[lane_mode]
+                                    dirn * conf.CAR_GAP[current_mode]
                         stop = dirn * min(dirn * stop, dirn * this_stop)
                     new_v = dirn * (stop - front)
-                    if 0 <= new_v < v:
+                    if new_v < v:
+                        # velocity reduced
+                        v = max(0, new_v)
+                        if v == 0 and \
+                           (current_mode == 'moving' or prev.mode != 'moving'):
+                            # to make sure we only stop if every car in front
+                            # has stopped - in case this car is faster than the
+                            # one in front
+                            car.set_mode(new_mode)
                         current_mode = new_mode
-                        # velocity reduced: we're stopping
-                        v = new_v
-                        if v == 0:
-                            # to make sure we only stop if every car in
-                            # front has stopped - in case this car is
-                            # faster than the one in front
-                            car.set_mode(lane_mode)
                     r.move_ip(v * dirn, 0)
+                else:
+                    new_mode = current_mode = car.mode
                 prev = car
 
 
 class Car (object):
     def __init__ (self, road, img, crashed_img, pos):
         self.road = road
-        self._img = img
+        self.img = self._img = img
         self._crashed_img = crashed_img
         self._objs = []
         self.rect = pg.Rect(pos, img.get_size())
-        self.start()
+        self.mode = 'moving'
 
     def _update_img (self):
-        self.img = self._img if self.mode == 'moving' else self._crashed_img
+        self.img = self._crashed_img if self.mode == 'crashed' else self._img
 
     def _add_objs (self, cls):
         if self._objs:
@@ -175,21 +185,24 @@ class Car (object):
         self._objs = []
 
     def start (self):
-        self.mode = 'moving'
-        for o in self._objs:
-            self.road.level.rm_obj(o)
-        self._rm_objs()
-        self._update_img()
+        if self.mode == 'stopped':
+            self.mode = 'moving'
+            for o in self._objs:
+                self.road.level.rm_obj(o)
+            self._rm_objs()
+            self._update_img()
 
     def stop (self):
-        self.mode = 'stopped'
-        self._add_objs(StoppedCar)
-        self._update_img()
+        if self.mode == 'moving':
+            self.mode = 'stopped'
+            self._add_objs(StoppedCar)
+            self._update_img()
 
     def crash (self):
-        self.mode = 'crashed'
-        self._add_objs(CrashedCar)
-        self._update_img()
+        if self.mode != 'crashed':
+            self.mode = 'crashed'
+            self._add_objs(CrashedCar)
+            self._update_img()
 
     def set_mode (self, mode):
         {

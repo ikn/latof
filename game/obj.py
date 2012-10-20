@@ -4,6 +4,7 @@ from util import ir
 #   object methods:
 # Obj.interact(frog): perform basic action on object
 # Obj.on_crash(frog, road): object has been hit by a car
+# Obj.on_uncrash(frog, road): object has been removed from the road
 # Holdable.grab(): pick up object
 # Holdable.drop(pos): drop held object at pos
 # Holdable.use_on_<name(obj)>(frog, obj, pos): use held object on obj at pos
@@ -171,7 +172,7 @@ class BananaPeel (Holdable):
     desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
-    def on_crash (self, frog, road):
+    def on_crash (self, frog, road, mode):
         self.level.say('...Not sure why I thought that would do something.')
 
 

@@ -81,7 +81,7 @@ class Frog (obj_module.OneTileObj):
         def weight (pos):
             w = 1
             if pos in road_tiles:
-                w += 1 + lane_moving(pos[1])
+                w += lane_moving(pos[1])
             if pos in all_objs:
                 w += 2
             return w
