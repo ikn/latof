@@ -164,7 +164,7 @@ class Fruit (Edible):
     def use_on_basket (self, frog, basket, pos):
         self.level.say('I put the {} back in the basket.'.format(name(self)))
         frog.destroy()
-        basket.add_fruit(self.__class__)
+        basket.add(self.__class__)
 
 
 class BananaPeel (Holdable):
