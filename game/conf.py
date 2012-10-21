@@ -114,8 +114,20 @@ class Conf (object):
     ROAD_LANE_WIDTH = 40
     ROAD_DIRN = 1 # 1 for left, -1 for right
     CAR_SPEED = 600 # pixels per second
-    CAR_SPEED_JITTER = 60 # mean variation of car speed (pixels per second)
+    CAR_SPEED_JITTER = 20 # mean variation of car speed (pixels per second)
     CAR_GAP = {'moving': 50, 'stopped': 5, 'crashed': 0}
+    CAR_WEIGHTINGS = {
+        'car0': (1, {
+            'red': 1,
+            'blue': 1,
+            'yellow': .3
+        }), 'van0': (.3, {
+            'white': 1
+        }), 'lorry0': (.2, {
+            'blue': 1,
+            'orange': .5
+        })
+    }
     # crash
     CRASH_POS_JITTER = 50 # mean pixels displaced
     CRASH_FOLLOWTHROUGH = 30 # pixels moved past crash point

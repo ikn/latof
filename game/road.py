@@ -3,7 +3,7 @@ from random import randint, expovariate as expo
 import pygame as pg
 
 from conf import conf
-from util import ir, randsgn
+from util import ir, randsgn, weighted_rand
 from obj import Obj
 
 
@@ -13,12 +13,23 @@ class Road (object):
         self.rect = pg.Rect(conf.ROAD_POS, conf.ROAD_SIZE)
         self.tile_rect = pg.Rect(conf.TILE_ROAD_POS, conf.TILE_ROAD_SIZE)
         self.tiles = level.rect_tiles(self.rect)
-        self.car_img = self.level.game.img(('car', '0.png'))
-        self.car_crashed_img = self.car_img
+        load_img = level.game.img
         n_lanes = len(conf.ROAD_LANES)
         self.cars = [[self.lane_dirn(i), []] for i in xrange(n_lanes)]
         self._modes = ['moving'] * n_lanes
         self._stopping = [False] * n_lanes
+        # load images
+        self.img_weightings = ws = []
+        self.car_imgs = imgs = []
+        self.car_crashed_imgs = crashed_imgs = []
+        for model, (m_weight, colours) in conf.CAR_WEIGHTINGS.iteritems():
+            for c, c_weight in colours.iteritems():
+                ws.append(m_weight * c_weight)
+                for ext, dest in (('', imgs), ('-crashed', crashed_imgs)):
+                    img = load_img(('car', model + '-' + c + ext + '.png'))
+                    flipped = pg.transform.flip(img, True, False)
+                    dest.append((img, flipped))
+        # add cars
         for lane in xrange(n_lanes):
             self.fill_lane(lane)
 
@@ -41,12 +52,18 @@ class Road (object):
         # x is the front of the car
         x0, y0, w, h = self.rect
         dirn, cars = self.cars[lane]
-        iw, ih = self.car_img.get_size()
+        i = weighted_rand(self.img_weightings)
+        imgs = self.car_imgs[i]
+        crashed_imgs = self.car_crashed_imgs[i]
+        iw, ih = imgs[0].get_size()
 
         if x is None:
             gap = conf.CAR_GAP[mode]
             if cars:
-                x = cars[-1].rect[0] - dirn * (iw + gap)
+                # start after last car
+                x = cars[-1].back(dirn) - dirn * gap
+                if dirn == 1:
+                    x -= iw
             else:
                 # choose a random position at the front
                 if dirn == 1:
@@ -60,7 +77,8 @@ class Road (object):
             x -= iw
         y = conf.ROAD_LANES[lane] - ih / 2
 
-        cars.append(Car(self, self.car_img, self.car_crashed_img, (x, y)))
+        cars.append(Car(self, imgs[dirn == 1], crashed_imgs[dirn == 1],
+                        (x, y)))
 
     def fill_lane (self, lane, mode = 'moving', x = None):
         dirn, cars = self.cars[lane]

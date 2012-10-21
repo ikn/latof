@@ -188,6 +188,7 @@ class Frog (obj_module.OneTileObj):
 
     def destroy (self):
         self.item = None
+        self.level.update_held()
 
     def drop (self, obj = None, pos = None):
         if obj is None:

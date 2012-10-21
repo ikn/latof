@@ -172,7 +172,7 @@ class BananaPeel (Holdable):
     desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
            'littering, but it still makes me feel bad.'
 
-    def on_crash (self, frog, road, mode):
+    def on_crash (self, frog, road):
         self.level.say('...Not sure why I thought that would do something.')
 
 
