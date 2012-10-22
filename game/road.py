@@ -220,6 +220,7 @@ class Road (object):
         game.linear_fade(*conf.CRASH_FADE)
         game.scheduler.add_timeout(self._crash, (pos,),
                                    seconds = conf.CRASH_TIME)
+        self.level.cutscene(conf.CRASH_FADE[-1][1])
 
     def update (self):
         fps = self.level.game.scheduler.timer.fps

@@ -68,7 +68,7 @@ class Level (object):
         self._held_sfc = pg.Surface(TILE_SIZE).convert_alpha()
         self._held_sfc.fill(conf.UI_BG)
         self._last_ident = self.ident = ident
-        self._finished = False
+        self._locked = False
         self.game.linear_fade(*conf.INIT_FADE)
         self.init()
 
@@ -93,10 +93,9 @@ class Level (object):
         self.update_held()
 
     def restart (self):
-        if not self._finished:
-            self.game.linear_fade(*conf.RESTART_FADE)
-            self.game.scheduler.add_timeout(self.init,
-                                            seconds = conf.RESTART_TIME)
+        self.game.linear_fade(*conf.RESTART_FADE)
+        self.game.scheduler.add_timeout(self.init, seconds = conf.RESTART_TIME)
+        self.cutscene(conf.RESTART_FADE[-1][1])
 
     def progress (self):
         self.ident += 1
@@ -104,18 +103,27 @@ class Level (object):
             self.end()
         else:
             self.init()
+        #self.cutscene(t)
 
     def end (self):
-        if not self._finished:
-            self._finished = True
-            self.game.linear_fade(False, ((0, 0, 0), 1), persist = True)
-            self.game.scheduler.add_timeout(self.game.quit_backend,
-                                            seconds = 1)
+        self.game.linear_fade(False, ((0, 0, 0), 1), persist = True)
+        self.game.scheduler.add_timeout(self.game.quit_backend, seconds = 1)
+        self.cutscene(1)
+
+    def _end_cutscene (self):
+        self._locked = False
+
+    def cutscene (self, t):
+        self._locked = True
+        self.frog.stop()
+        self.game.scheduler.add_timeout(self._end_cutscene, seconds = t)
 
     def _move_mouse (self, evt):
         pass
 
     def _click (self, evt):
+        if self._locked:
+            return
         if evt.button in conf.ACTION_SETS:
             if 'msg' in self.ui:
                 self.ui['msg'].hide()

@@ -18,6 +18,10 @@ class Frog (obj_module.OneTileObj):
         self.dead = False
         self.level.add_obj(self, self.pos)
 
+    def stop (self):
+        # cancel all queued actions
+        self._queue = []
+
     def queue (self, f, *args, **kw):
         self._queue.append((f, args, kw))
 
@@ -261,8 +265,6 @@ class Frog (obj_module.OneTileObj):
             self.queue(self._action_with_pos, action, obj, pos, True)
 
     def action (self, actions, objs, pos):
-        if self.dead:
-            return
         # select solid obj or uppermost (last) obj
         solid = [o for o in objs if o.solid]
         if solid:
@@ -319,8 +321,6 @@ class Frog (obj_module.OneTileObj):
             self._action_with_pos(action, obj, pos)
 
     def update (self):
-        if self.dead:
-            return
         if self._queue_t <= 0:
             if self._queue:
                 f, args, kw = self._queue.pop(0)
