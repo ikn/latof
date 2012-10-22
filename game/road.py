@@ -136,47 +136,73 @@ class Road (object):
         tile_x = ((x - 1) if lane < 2 else x) / s
         return (tile_x, x)
 
-    def _update_bds (self, bds, lb, ub, *lanes):
-        for lane in lanes:
-            old_lb, old_ub = bds[lane]
-            old_lb = max(old_lb, lb)
-            old_ub = min(old_ub, ub)
-            bds[lane] = (old_lb, old_ub)
-
     def _crash (self, pos):
         # generate stop positions (front-most tiles)
         n_lanes = len(conf.ROAD_LANES)
         tile_stop = [0] * n_lanes
         stop = [0] * n_lanes
         origin = next(self.pos_lanes(pos[1]))
-        bounds = [(0, 13), (0, 12), (2, 14), (1, 14)]
-        # prepare for bounds changing
-        lane_overlaps = [set() for i in xrange(n_lanes)]
+        lane_bounds = [(0, 13), (0, 12), (2, 14), (1, 14)]
+        # generate tile bounds
         r = self.tile_rect
+        bounds = {}
+        lane_tiles = [[] for i in xrange(n_lanes)]
+        tile_lanes = {}
         for y in xrange(r[1], r[1] + r[3]):
             lanes = list(self.pos_lanes(y))
-            for lane1 in lanes:
-                for lane2 in lanes:
-                    if lane1 != lane2:
-                        lane_overlaps[lane1].add(lane2)
+            for lane in lanes:
+                lane_tiles[lane].append(y)
+            tile_lanes[y] = lanes
+            lb = max(lane_bounds[lane][0] for lane in lanes)
+            ub = min(lane_bounds[lane][1] for lane in lanes)
+            bounds[y] = (lb, ub)
         # set origin lane position
         x = conf.TILE_SIZE[0] * pos[0] + \
             conf.CRASH_FOLLOWTHROUGH * self.lane_dirn(origin)
         tile_stop[origin], stop[origin] = self._jitter_clamp(
-            x, *bounds[origin], lane = origin
+            x, *lane_bounds[origin], lane = origin
         )
         # set other lane positions
         for d in (-1, 1):
             lane = origin + d
             x = stop[origin]
             while 0 <= lane <= 3:
-                lb, ub = bounds[lane]
+                lb, ub = lane_bounds[lane]
+                # set bounds to make sure the direction switchover leaves a
+                # path through
                 if d == 1 and lane == 2 and origin <= 1:
-                    lb = max(lb, tile_stop[1] + 2)
-                    self._update_bds(bounds, lb, ub, *lane_overlaps[lane])
+                    lbs = [lb]
+                    tiles = lane_tiles[lane]
+                    tiles.append(min(tiles) - 1)
+                    related = set(sum((tile_lanes[y] for y in tiles), []))
+                    for l in related:
+                        if l > lane:
+                            lbs.append(tile_stop[l] + 2)
+                    lb = max(lbs)
+                    for l in related:
+                        if l < lane:
+                            this_lb, this_ub = lane_bounds[l]
+                            lane_bounds[l] = (max(lb, this_lb), ub, this_ub)
+                            for this_y in lane_tiles[l]:
+                                this_lb, this_ub = bounds[this_y]
+                                bounds[this_y] = (max(lb, this_lb), ub, this_ub)
                 elif d == -1 and lane == 1 and origin >= 2:
-                    ub = min(ub, tile_stop[2] - 2)
-                    self._update_bds(bounds, lb, ub, *lane_overlaps[lane])
+                    ubs = [ub]
+                    tiles = lane_tiles[lane]
+                    tiles.append(max(tiles) + 1)
+                    related = set(sum((tile_lanes[y] for y in tiles), []))
+                    for l in related:
+                        if l > lane:
+                            ubs.append(tile_stop[l] - 2)
+                    ub = min(ubs)
+                    for l in related:
+                        if l < lane:
+                            this_lb, this_ub = lane_bounds[l]
+                            lane_bounds[l] = (this_lb, min(ub, this_ub))
+                            for this_y in lane_tiles[l]:
+                                this_lb, this_ub = bounds[this_y]
+                                bounds[this_y] = (this_lb, min(ub, this_ub))
+                # decide randomish position inside bounds
                 tile_stop[lane], x = self._jitter_clamp(x, lb, ub, lane)
                 stop[lane] = x
                 lane += d
