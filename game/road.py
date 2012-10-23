@@ -52,9 +52,8 @@ class Road (object):
         # x is the front of the car
         x0, y0, w, h = self.rect
         dirn, cars = self.cars[lane]
-        i = weighted_rand(self.img_weightings)
-        imgs = self.car_imgs[i]
-        crashed_imgs = self.car_crashed_imgs[i]
+        imgs = (self.car_crashed_imgs if mode == 'crashed' else self.car_imgs)
+        imgs = imgs[weighted_rand(self.img_weightings)]
         iw, ih = imgs[0].get_size()
 
         if x is None:
@@ -77,8 +76,7 @@ class Road (object):
             x -= iw
         y = conf.ROAD_LANES[lane] - ih / 2
 
-        cars.append(Car(self, imgs[dirn == 1], crashed_imgs[dirn == 1],
-                        (x, y)))
+        cars.append(Car(self, imgs[dirn == 1], (x, y)))
 
     def fill_lane (self, lane, mode = 'moving', x = None):
         dirn, cars = self.cars[lane]
@@ -274,10 +272,9 @@ class Road (object):
 
 
 class Car (object):
-    def __init__ (self, road, img, crashed_img, pos):
+    def __init__ (self, road, img, pos):
         self.road = road
         self.img = self._img = img
-        self._crashed_img = crashed_img
         self._objs = []
         self.rect = pg.Rect(pos, img.get_size())
         self.mode = 'moving'
@@ -289,9 +286,6 @@ class Car (object):
     def back (self, dirn):
         r = self.rect
         return r[0] if dirn == 1 else (r[0] + r[2])
-
-    def _update_img (self):
-        self.img = self._crashed_img if self.mode == 'crashed' else self._img
 
     def _add_objs (self, cls):
         if self._objs:
@@ -316,19 +310,16 @@ class Car (object):
             for o in self._objs:
                 self.road.level.rm_obj(o)
             self._rm_objs()
-            self._update_img()
 
     def stop (self):
         if self.mode == 'moving':
             self.mode = 'stopped'
             self._add_objs(StoppedCar)
-            self._update_img()
 
     def crash (self):
         if self.mode != 'crashed':
             self.mode = 'crashed'
             self._add_objs(CrashedCar)
-            self._update_img()
 
     def set_mode (self, mode):
         {

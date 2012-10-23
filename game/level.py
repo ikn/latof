@@ -222,7 +222,7 @@ class Level (object):
         if last is not None:
             last.draw(screen)
 
-    def draw_cars (self, screen):
+    def _draw_cars (self, screen):
         for dirn, cars in self.road.cars:
             for car in cars:
                 car.draw(screen)
@@ -242,7 +242,7 @@ class Level (object):
                     if objs:
                         draw_objs(screen, objs)
             # moving cars
-            self.draw_cars(screen)
+            self._draw_cars(screen)
             # overlays
             for overlay in overlays:
                 overlay.draw(screen)
@@ -277,7 +277,7 @@ class Level (object):
                 for overlay in overlays:
                     if tile in overlay.tiles:
                         todo_os.add(overlay)
-            self.draw_cars(screen)
+            self._draw_cars(screen)
             rects.append(road.rect)
             # draw overlays
             for overlay in todo_os:
