@@ -1,5 +1,6 @@
 from conf import conf
 from util import ir
+import circuit
 
 #   object methods:
 # Obj.interact(frog): perform basic action on object
@@ -316,3 +317,20 @@ class PuddleOfOil (OneTileObj):
     solid = False
     desc = 'A puddle of slippery oil.  This would have posed a hazard to me ' \
            'before I realised I was self-aware.'
+
+
+# level 1
+
+
+class TrafficLights (OneTileObj):
+    desc = 'Some traffic lights.'
+
+    def __init__ (self, *args, **kwargs):
+        OneTileObj.__init__(self, *args, **kwargs)
+        self._circuit = circuit.CircuitPuzzle(conf.CIRCUIT)
+        self._step()
+
+    def _step (self):
+        stage = self._circuit.step()
+        self.level.game.scheduler.add_timeout(self._step,
+                                              seconds = conf.CIRCUIT_MOVE_TIME)

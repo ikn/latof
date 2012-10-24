@@ -60,6 +60,7 @@ class Frog (obj_module.OneTileObj):
     def die (self):
         if not self.dead:
             self.dead = True
+            self.level.game.play_snd('die')
             self.level.change_tile(self.pos)
             self.img = self.level.game.img(('obj', 'deadfrog.png'))
             self.level.restart()

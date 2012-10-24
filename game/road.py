@@ -32,6 +32,8 @@ class Road (object):
         # add cars
         for lane in xrange(n_lanes):
             self.fill_lane(lane)
+        # play traffic sound
+        pg.mixer.music.unpause()
 
     def lane_dirn (self, lane):
         return conf.ROAD_DIRN * (1 if lane < len(conf.ROAD_LANES) / 2 else -1)
@@ -218,6 +220,8 @@ class Road (object):
         game.linear_fade(*conf.CRASH_FADE)
         game.scheduler.add_timeout(self._crash, (pos,),
                                    seconds = conf.CRASH_TIME)
+        game.play_snd('crash')
+        game.scheduler.add_timeout(pg.mixer.music.pause, seconds = 1)
         self.level.cutscene(conf.CRASH_CTRL_TIME)
 
     def update (self):

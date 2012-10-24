@@ -113,6 +113,8 @@ music: filenames for known music.
         pg.mixer.music.set_endevent(conf.EVENT_ENDMUSIC)
         self.find_music()
         self.play_music()
+        if not conf.MUSIC_AUTOPLAY:
+            pg.mixer.music.pause()
 
     def _init_backend (self):
         """Set some default attributes for a new backend."""
@@ -741,6 +743,6 @@ if __name__ == '__main__':
         restarting = True
         while restarting:
             restarting = False
-            Game(Level).run()
+            Game(Level, 0).run()
 
 pg.quit()

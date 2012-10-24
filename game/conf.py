@@ -80,10 +80,11 @@ class Conf (object):
                    3: ('grab', 'use', 'drop')}
 
     # audio
-    MUSIC_VOLUME = dd(.5) # per-backend
+    MUSIC_AUTOPLAY = True # just pauses music
+    MUSIC_VOLUME = dd(.2) # per-backend
     SOUND_VOLUME = .5
     EVENT_ENDMUSIC = pg.USEREVENT
-    SOUND_VOLUMES = dd(1)
+    SOUND_VOLUMES = dd(1, crash = 1.5)
     # generate SOUNDS = {ID: num_sounds}
     SOUNDS = {}
     ss = glob(join_path(SOUND_DIR, '*.ogg'))
@@ -135,8 +136,8 @@ class Conf (object):
     # crash
     CRASH_POS_JITTER = 50 # mean pixels displaced
     CRASH_FOLLOWTHROUGH = 30 # pixels moved past crash point
-    CRASH_TIME = 2
-    CRASH_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 3), (False, 4)]
+    CRASH_TIME = 5
+    CRASH_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 11), (False, 12)]
     CRASH_CTRL_TIME = 3
 
     # UI
@@ -161,9 +162,23 @@ class Conf (object):
         'frog pos': (7, 12),
         'objs': {
             (3, 13): ('PuddleOfOil', 'Basket'),
+            (7, 11): 'OilyBlanket',
             (2, 13): 'PicnicBlanket'
         }
+    }, {
+        'frog pos': (7, 12),
+        'objs': {
+            (10, 10): 'TrafficLights'
+        }
     }]
+    # level 1
+    CIRCUIT = {
+        'size': (10, 6),
+        'pwr': (6, 5),
+        'states': [],
+        'initial dirn': 0
+    }
+    CIRCUIT_MOVE_TIME = 1
 
 
 def translate_dd (d):
