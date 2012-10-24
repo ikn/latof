@@ -130,7 +130,8 @@ by str.splitlines), as does the width restriction.
             pad = pad + pad
         else:
             pad = tuple(pad)
-        width -= pad[0] + pad[2]
+        if width is not None:
+            width -= pad[0] + pad[2]
 
         # split into lines
         text = text.splitlines()

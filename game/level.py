@@ -95,7 +95,7 @@ class Level (object):
     def restart (self):
         self.game.linear_fade(*conf.RESTART_FADE)
         self.game.scheduler.add_timeout(self.init, seconds = conf.RESTART_TIME)
-        self.cutscene(conf.RESTART_FADE[-1][1])
+        self.cutscene(conf.RESTART_CTRL_TIME)
 
     def progress (self):
         self.ident += 1
@@ -106,9 +106,10 @@ class Level (object):
         #self.cutscene(t)
 
     def end (self):
-        self.game.linear_fade(False, ((0, 0, 0), 1), persist = True)
-        self.game.scheduler.add_timeout(self.game.quit_backend, seconds = 1)
-        self.cutscene(1)
+        self.game.linear_fade(*conf.END_FADE, persist = True)
+        self.game.scheduler.add_timeout(self.game.quit_backend,
+                                        seconds = conf.END_TIME)
+        self.cutscene(conf.END_CTRL_TIME)
 
     def _end_cutscene (self):
         self._locked = False
@@ -119,14 +120,31 @@ class Level (object):
         self.game.scheduler.add_timeout(self._end_cutscene, seconds = t)
 
     def _move_mouse (self, evt):
-        pass
+        orig_x, orig_y = evt.pos
+        x = orig_x / TILE_SIZE[0]
+        y = orig_y / TILE_SIZE[1]
+        obj = self.top_obj(self.objs[x][y])
+        if obj is None:
+            self._rm_ui('label')
+            return
+        label = obj_module.name(obj)
+        sfc = self.game.render_text(
+            'label', label, conf.FONT_COLOUR, bg = conf.UI_BG,
+            pad = conf.LABEL_PADDING, cache = ('label', label)
+        )[0]
+        o = conf.LABEL_OFFSET
+        ws, hs = sfc.get_size()
+        x, y = orig_x + o[0], orig_y - hs + o[1]
+        w, h = conf.RES
+        x = min(max(x, 0), w - ws)
+        y = min(max(y, 0), h - hs)
+        self._add_ui('label', sfc, (x, y))
 
     def _click (self, evt):
         if self._locked:
             return
         if evt.button in conf.ACTION_SETS:
-            if 'msg' in self.ui:
-                self.ui['msg'].hide()
+            self._rm_ui('msg')
             pos = tuple(x / s for x, s in zip(evt.pos, TILE_SIZE))
             self.frog.action(conf.ACTION_SETS[evt.button],
                              self.objs[pos[0]][pos[1]], pos)
@@ -175,6 +193,16 @@ class Level (object):
            hasattr(obj, 'on_uncrash'):
             obj.on_uncrash(self.frog, self.road)
 
+    def top_obj (self, objs):
+        # select solid obj or uppermost (last) obj
+        solid = [o for o in objs if o.solid]
+        if solid:
+            return solid[0]
+        elif objs:
+            return objs[-1]
+        else:
+            return None
+
     def _add_ui (self, ident, sfc, pos = None):
         if pos is None:
             pos = conf.UI_POS[ident]
@@ -199,8 +227,8 @@ class Level (object):
 
     def say (self, msg):
         sfc = self.game.render_text(
-            'main', msg, conf.FONT_COLOUR, width = conf.MSG_WIDTH,
-            bg = conf.UI_BG, pad = conf.MSG_PADDING
+            'msg', msg, conf.FONT_COLOUR, width = conf.MSG_WIDTH,
+            bg = conf.UI_BG, pad = conf.MSG_PADDING, cache = ('msg', msg)
         )[0]
         self._add_ui('msg', sfc)
 

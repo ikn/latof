@@ -6,6 +6,8 @@ import obj as obj_module
 
 
 class Frog (obj_module.OneTileObj):
+    name = 'Frog?'
+
     def __init__ (self, level, pos = None, dirn = 1):
         obj_module.OneTileObj.__init__(self, level, pos)
         self._last_pos = list(self.pos)
@@ -243,7 +245,7 @@ class Frog (obj_module.OneTileObj):
             if obj is None:
                 name = 'ground'
             else:
-                name = obj_module.name(obj).replace(' ', '_')
+                name = obj_module.ident(obj).replace(' ', '_')
             method = 'use_on_' + name
             if not hasattr(self.item, method):
                 self.level.say('I won\'t gain anything from doing that.')
@@ -265,14 +267,7 @@ class Frog (obj_module.OneTileObj):
             self.queue(self._action_with_pos, action, obj, pos, True)
 
     def action (self, actions, objs, pos):
-        # select solid obj or uppermost (last) obj
-        solid = [o for o in objs if o.solid]
-        if solid:
-            obj = solid[0]
-        elif objs:
-            obj = objs[-1]
-        else:
-            obj = None
+        obj = self.level.top_obj(objs)
         # go through actions and do the first we can
         actions = list(actions)
         on_fail = []
@@ -303,7 +298,7 @@ class Frog (obj_module.OneTileObj):
             if action == 'drop':
                 if self.item is None:
                     on_fail.append('I have nothing to drop.')
-                elif solid:
+                elif obj is not None and obj.solid:
                     on_fail.append('I can\'t put this there: something is ' \
                                    'in the way.')
                 else:

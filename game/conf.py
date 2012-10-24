@@ -105,6 +105,10 @@ class Conf (object):
     INIT_FADE = [(0, 0, 0), (False, 1)]
     RESTART_TIME = 1.5
     RESTART_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 1.5), (False, 2.5)]
+    RESTART_CTRL_TIME = 1.5
+    END_TIME = 1
+    END_FADE = [False, ((0, 0, 0), 1)]
+    END_CTRL_TIME = 1
     # road
     ROAD_POS = (0, 200)
     ROAD_SIZE = (600, 200)
@@ -133,16 +137,24 @@ class Conf (object):
     CRASH_FOLLOWTHROUGH = 30 # pixels moved past crash point
     CRASH_TIME = 2
     CRASH_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 3), (False, 4)]
+    CRASH_CTRL_TIME = 3
 
     # UI
     # per-backend, each a {key: value} dict to update fonthandler.Fonts with
-    FONT_SIZE = 17
-    REQUIRED_FONTS = dd({'main': ('JacquesFrancois.ttf', FONT_SIZE)})
+    FONT = 'JacquesFrancois.ttf'
+    MSG_FONT_SIZE = 17
+    LABEL_FONT_SIZE = 13
+    REQUIRED_FONTS = dd({
+        'msg': (FONT, MSG_FONT_SIZE),
+        'label': (FONT, LABEL_FONT_SIZE),
+    })
     FONT_COLOUR = (255, 230, 200)
     UI_BG = (30, 20, 0, 150)
     UI_POS = {'msg': (0, 0), 'held': (RES[0] - TILE_SIZE[0], 0)}
     MSG_WIDTH = RES[0] - TILE_SIZE[0] - 5
     MSG_PADDING = (10, 3, 10, 5)
+    LABEL_PADDING = (5, 1)
+    LABEL_OFFSET = (10, -5)
 
     # levels
     LEVELS = [{

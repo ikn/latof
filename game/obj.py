@@ -7,7 +7,7 @@ from util import ir
 # Obj.on_uncrash(frog, road): object has been removed from the road
 # Holdable.grab(): pick up object
 # Holdable.drop(pos): drop held object at pos
-# Holdable.use_on_<name(obj)>(frog, obj, pos): use held object on obj at pos
+# Holdable.use_on_<ident(obj)>(frog, obj, pos): use held object on obj at pos
 #   subclasses may implement event handlers
 # Holdable.on_grab(): when this is grabbed; called before pos is set to None
 #                     (but it might already be None)
@@ -15,7 +15,7 @@ from util import ir
 
 # every solid holdable object must become non-solid on crash
 
-def name (obj):
+def ident (obj):
     if not isinstance(obj, type):
         obj = obj.__class__
     s = obj.__name__
@@ -28,6 +28,13 @@ def name (obj):
     if len(s) > i:
         words.append(s[i].lower() + s[i + 1:])
     return ' '.join(words)
+
+def name (obj):
+    if not isinstance(obj, type):
+        obj = obj.__class__
+    if hasattr(obj, 'name'):
+        return obj.name
+    return ident(obj)
 
 def article (obj):
     if not isinstance(obj, basestring):
