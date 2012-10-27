@@ -103,13 +103,6 @@ class Conf (object):
     TILE_SIZE = (40, 40)
     LEVEL_SIZE = (RES[0] / TILE_SIZE[0], RES[1] / TILE_SIZE[1])
     FROG_MOVE_TIME = .1
-    INIT_FADE = [(0, 0, 0), (False, 1)]
-    RESTART_TIME = 1.5
-    RESTART_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 1.5), (False, 2.5)]
-    RESTART_CTRL_TIME = 1.5
-    END_TIME = 1
-    END_FADE = [False, ((0, 0, 0), 1)]
-    END_CTRL_TIME = 1
     # road
     ROAD_POS = (0, 200)
     ROAD_SIZE = (600, 200)
@@ -133,12 +126,17 @@ class Conf (object):
             'orange': .5
         })
     }
-    # crash
     CRASH_POS_JITTER = 50 # mean pixels displaced
     CRASH_FOLLOWTHROUGH = 30 # pixels moved past crash point
-    CRASH_TIME = 5
-    CRASH_FADE = [False, ((0, 0, 0), 1), ((0, 0, 0), 11), (False, 12)]
-    CRASH_CTRL_TIME = 3
+    # cutscenes
+    b = (0, 0, 0)
+    INIT_FADE = [b, (False, 1)]
+    # each is (event_time, fade[, restore_control_time = event_time)
+    RESTART = (1.5, [False, (b, 1), (b, 1.5), (False, 2.5)])
+    PROGRESS = (1.5, [False, (b, 1), (b, 1.5), (False, 2.5)])
+    END = (1, [False, (b, 1)])
+    CRASH = (5, [False, (b, 1), (b, 11), (False, 12)], 3)
+    CRASH_STOP_TRAFFIC_SND_TIME = 1
 
     # UI
     # per-backend, each a {key: value} dict to update fonthandler.Fonts with
@@ -162,7 +160,6 @@ class Conf (object):
         'frog pos': (7, 12),
         'objs': {
             (3, 13): ('PuddleOfOil', 'Basket'),
-            (7, 11): 'OilyBlanket',
             (2, 13): 'PicnicBlanket'
         }
     }, {
@@ -173,11 +170,15 @@ class Conf (object):
     }]
     # level 1
     CIRCUIT = {
-        'size': (10, 6),
+        'rect': (0, 400, 600, 200),
+        'size': (24, 8),
         'pwr': (6, 5),
-        'states': [],
-        'initial dirn': 0
+        'states': [(4, 4)],
+        'initial dirn': 0,
+        'wires': [((6, 5), (5, 5)), ((5, 5), (4, 5)), ((4, 5), (4, 4))]
     }
+    CIRCUIT_PWR_COLOUR = (0, 0, 0)
+    CIRCUIT_STATE_COLOURS = [(255, 0, 0)]
     CIRCUIT_MOVE_TIME = 1
 
 

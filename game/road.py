@@ -217,12 +217,10 @@ class Road (object):
 
     def crash (self, pos):
         game = self.level.game
-        game.linear_fade(*conf.CRASH_FADE)
-        game.scheduler.add_timeout(self._crash, (pos,),
-                                   seconds = conf.CRASH_TIME)
         game.play_snd('crash')
-        game.scheduler.add_timeout(pg.mixer.music.pause, seconds = 1)
-        self.level.cutscene(conf.CRASH_CTRL_TIME)
+        game.scheduler.add_timeout(pg.mixer.music.pause,
+                                   seconds = conf.CRASH_STOP_TRAFFIC_SND_TIME)
+        self.level.cutscene(lambda: self._crash(pos), *conf.CRASH)
 
     def update (self):
         fps = self.level.game.scheduler.timer.fps

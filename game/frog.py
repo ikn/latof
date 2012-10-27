@@ -74,8 +74,6 @@ class Frog (obj_module.OneTileObj):
     def _move (self, dest):
         self._face(dest)
         self.pos = dest
-        if dest[1] < self.level.road.tile_rect[1]:
-            self.level.progress()
         return ir(conf.FROG_MOVE_TIME * self.level.game.scheduler.timer.fps)
 
     def get_path (self, dest, all_objs, objs = ()):
@@ -321,14 +319,18 @@ class Frog (obj_module.OneTileObj):
             if self._queue:
                 f, args, kw = self._queue.pop(0)
                 self._queue_t = f(*args, **kw) or 1
+                if f == self._move:
+                    if self.pos[1] < self.level.road.tile_rect[1]:
+                        self.level.progress()
+                    else:
+                        l, p = self._last_pos, self.pos
+                        ld, d = self._last_dirn, self.dirn
+                        if l != p or ld != d:
+                            self.level.rm_obj(self, l)
+                            self.level.add_obj(self, p)
+                            self._last_pos = p
+                            self._last_dirn = d
         self._queue_t -= 1
-        l, p = self._last_pos, self.pos
-        ld, d = self._last_dirn, self.dirn
-        if l != p or ld != d:
-            self.level.rm_obj(self, l)
-            self.level.add_obj(self, p)
-            self._last_pos = p
-            self._last_dirn = d
 
     def draw (self, screen):
         if not self.dead:

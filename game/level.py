@@ -49,7 +49,11 @@ class Overlay (object):
 
     def set_sfc (self, sfc):
         self.sfc = sfc
-        self._set_rect(pg.Rect(pos, sfc.get_size()))
+        sz = sfc.get_size()
+        if self.rect.size == sz:
+            self._update()
+        else:
+            self._set_rect(pg.Rect(self.rect.topleft, sfc.get_size()))
 
     def move (self, dx, dy):
         self._set_rect(self.rect.move(dx, dy))
@@ -69,6 +73,7 @@ class Level (object):
         self._held_sfc.fill(conf.UI_BG)
         self._last_ident = self.ident = ident
         self._locked = False
+        self.drop_input()
         self.game.linear_fade(*conf.INIT_FADE)
         self.init()
 
@@ -93,61 +98,71 @@ class Level (object):
         self.update_held()
 
     def restart (self):
-        self.game.linear_fade(*conf.RESTART_FADE)
-        self.game.scheduler.add_timeout(self.init, seconds = conf.RESTART_TIME)
-        self.cutscene(conf.RESTART_CTRL_TIME)
+        self.cutscene(self.init, *conf.RESTART)
 
     def progress (self):
         self.ident += 1
         if self.ident >= len(conf.LEVELS):
-            self.end()
+            self.cutscene(self.game.quit_backend, *conf.END)
         else:
-            self.init()
-        #self.cutscene(t)
-
-    def end (self):
-        self.game.linear_fade(*conf.END_FADE, persist = True)
-        self.game.scheduler.add_timeout(self.game.quit_backend,
-                                        seconds = conf.END_TIME)
-        self.cutscene(conf.END_CTRL_TIME)
+            self.cutscene(self.init, *conf.PROGRESS)
 
     def _end_cutscene (self):
         self._locked = False
 
-    def cutscene (self, t):
+    def cutscene (self, evt_f, evt_t, fade, ctrl_t = None):
         self._locked = True
         self.frog.stop()
-        self.game.scheduler.add_timeout(self._end_cutscene, seconds = t)
-
-    def _move_mouse (self, evt):
-        orig_x, orig_y = evt.pos
-        x = orig_x / TILE_SIZE[0]
-        y = orig_y / TILE_SIZE[1]
-        obj = self.top_obj(self.objs[x][y])
-        if obj is None:
-            self._rm_ui('label')
-            return
-        label = obj_module.name(obj)
-        sfc = self.game.render_text(
-            'label', label, conf.FONT_COLOUR, bg = conf.UI_BG,
-            pad = conf.LABEL_PADDING, cache = ('label', label)
-        )[0]
-        o = conf.LABEL_OFFSET
-        ws, hs = sfc.get_size()
-        x, y = orig_x + o[0], orig_y - hs + o[1]
-        w, h = conf.RES
-        x = min(max(x, 0), w - ws)
-        y = min(max(y, 0), h - hs)
-        self._add_ui('label', sfc, (x, y))
+        self.game.linear_fade(*fade)
+        self.game.scheduler.add_timeout(evt_f, seconds = evt_t)
+        if ctrl_t is None:
+            ctrl_t = evt_t
+        self.game.scheduler.add_timeout(self._end_cutscene, seconds = ctrl_t)
 
     def _click (self, evt):
         if self._locked:
             return
-        if evt.button in conf.ACTION_SETS:
+        if self._grab_click(evt) and evt.button in conf.ACTION_SETS:
             self._rm_ui('msg')
             pos = tuple(x / s for x, s in zip(evt.pos, TILE_SIZE))
             self.frog.action(conf.ACTION_SETS[evt.button],
                              self.objs[pos[0]][pos[1]], pos)
+
+    def _move_mouse (self, evt):
+        if self._grab_move(evt):
+            orig_x, orig_y = evt.pos
+            x = orig_x / TILE_SIZE[0]
+            y = orig_y / TILE_SIZE[1]
+            obj = self.top_obj(self.objs[x][y])
+            if obj is None:
+                self._rm_ui('label')
+                return
+            label = obj_module.name(obj)
+            sfc = self.game.render_text(
+                'label', label, conf.FONT_COLOUR, bg = conf.UI_BG,
+                pad = conf.LABEL_PADDING, cache = ('label', label)
+            )[0]
+            o = conf.LABEL_OFFSET
+            ws, hs = sfc.get_size()
+            x, y = orig_x + o[0], orig_y - hs + o[1]
+            w, h = conf.RES
+            x = min(max(x, 0), w - ws)
+            y = min(max(y, 0), h - hs)
+            self._add_ui('label', sfc, (x, y))
+
+    def _native_click (self, evt):
+        return True
+
+    def _native_move (self, evt):
+        return True
+
+    def grab_input (self, click, move):
+        self._grab_click = click
+        self._grab_move = move
+
+    def drop_input (self):
+        self._grab_click = self._native_click
+        self._grab_move = self._native_move
 
     def change_tile (self, tile):
         self._changed.add(tuple(tile))

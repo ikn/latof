@@ -323,14 +323,15 @@ class PuddleOfOil (OneTileObj):
 
 
 class TrafficLights (OneTileObj):
-    desc = 'Some traffic lights.'
-
-    def __init__ (self, *args, **kwargs):
-        OneTileObj.__init__(self, *args, **kwargs)
-        self._circuit = circuit.CircuitPuzzle(conf.CIRCUIT)
+    def __init__ (self, level, *args, **kwargs):
+        OneTileObj.__init__(self, level, *args, **kwargs)
+        self._circuit = circuit.CircuitPuzzle(level, conf.CIRCUIT)
         self._step()
 
     def _step (self):
         stage = self._circuit.step()
         self.level.game.scheduler.add_timeout(self._step,
                                               seconds = conf.CIRCUIT_MOVE_TIME)
+
+    def interact (self, frog):
+        self._circuit.show()
