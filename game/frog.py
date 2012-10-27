@@ -226,7 +226,8 @@ class Frog (obj_module.OneTileObj):
             if success:
                 pos = p
             else:
-                self.level.say('I can\'t find anywhere to drop this')
+                msg = 'I can\'t find anywhere to drop this {}.'
+                self.level.say(msg.format(obj_module.name(obj)))
                 return
         # drop object
         self.item = None
@@ -244,10 +245,11 @@ class Frog (obj_module.OneTileObj):
             if obj is None:
                 name = 'ground'
             else:
-                name = obj_module.ident(obj).replace(' ', '_')
-            method = 'use_on_' + name
+                name = obj_module.ident(obj)
+            method = 'use_on_' + name.replace(' ', '_')
             if not hasattr(self.item, method):
-                self.level.say('I won\'t gain anything from doing that.')
+                msg = 'I don\'t know how to use this {} on that {}.'
+                self.level.say(msg.format(obj_module.name(self.item), name))
             else:
                 getattr(self.item, method)(self, obj, pos)
 
@@ -291,22 +293,24 @@ class Frog (obj_module.OneTileObj):
                 elif self.item is not None:
                     on_fail.append('I\'m already holding something.')
                 elif not obj.holdable:
-                    on_fail.append('I can\'t pick that up.')
+                    msg = 'I can\'t pick that {} up.'
+                    on_fail.append(msg.format(obj_module.name(obj)))
                 else:
                     break
             if action == 'drop':
                 if self.item is None:
                     on_fail.append('I have nothing to drop.')
                 elif obj is not None and obj.solid:
-                    on_fail.append('I can\'t put this there: something is ' \
-                                   'in the way.')
+                    on_fail.append('I can\'t put this there: that {} is in '
+                                   'the way.'.format(obj_module.name(obj)))
                 else:
                     break
             if action == 'use':
                 if self.item is None:
                     on_fail.append('I have nothing to use.')
                 elif obj is None and not hasattr(self.item, 'use_on_ground'):
-                    on_fail.append('I can\'t use this on the ground.')
+                    msg = 'I can\'t use this {} on the ground.'
+                    on_fail.append(msg.format(obj_module.name(self.item)))
                 else:
                     break
         if action == 'move':

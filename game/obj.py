@@ -177,8 +177,8 @@ class Fruit (Edible):
 
 class BananaPeel (Holdable):
     solid = False
-    desc = 'The peel of a banana I ate.  Frogs can\'t be fined for ' \
-           'littering, but it still makes me feel bad.'
+    desc = 'The peel of a banana I ate.  Leaving it on the floor like that ' \
+           'is probably dangerous.'
 
     def on_crash (self, frog, road):
         self.level.say('...Not sure why I thought that would do something.')
@@ -315,14 +315,13 @@ class OilyBlanket (Holdable):
 
 class PuddleOfOil (OneTileObj):
     solid = False
-    desc = 'A puddle of slippery oil.  This would have posed a hazard to me ' \
-           'before I realised I was self-aware.'
+    desc = 'A puddle of slippery oil.  Probably the work of humans.'
 
 
 # level 1
 
 
-class TrafficLights (OneTileObj):
+class TrafficLight (OneTileObj):
     def __init__ (self, level, *args, **kwargs):
         OneTileObj.__init__(self, level, *args, **kwargs)
         self._circuit = circuit.CircuitPuzzle(level, conf.CIRCUIT)

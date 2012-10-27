@@ -342,4 +342,4 @@ class StoppedCar (Obj):
 
 
 class CrashedCar (Obj):
-    desc = 'A crashed car.'
+    desc = 'A crashed car.  I don\'t even feel guilty.'
