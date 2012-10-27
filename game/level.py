@@ -209,14 +209,8 @@ class Level (object):
             obj.on_uncrash(self.frog, self.road)
 
     def top_obj (self, objs):
-        # select solid obj or uppermost (last) obj
-        solid = [o for o in objs if o.solid]
-        if solid:
-            return solid[0]
-        elif objs:
-            return objs[-1]
-        else:
-            return None
+        # select uppermost (last) obj
+        return objs[-1] if objs else None
 
     def _add_ui (self, ident, sfc, pos = None):
         if pos is None:

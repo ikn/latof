@@ -348,7 +348,13 @@ class TrafficLight (OneTileObj):
     def _set_stop (self, stop):
         if self._stopped != stop:
             self._stopped = stop
-            print stop
+            road = self.level.road
+            if stop:
+                print 'stop'
+                road.stop_lanes((0, 5), (1, 5), (2, 7), (3, 7))
+            else:
+                print 'start'
+                road.start_lanes(0, 1, 2, 3)
 
     def interact (self, frog):
         self._circuit.show()

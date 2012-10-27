@@ -743,6 +743,6 @@ if __name__ == '__main__':
         restarting = True
         while restarting:
             restarting = False
-            Game(Level, 1).run()
+            Game(Level, 0).run()
 
 pg.quit()

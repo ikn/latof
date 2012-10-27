@@ -113,19 +113,25 @@ class Road (object):
                 return True
         return False
 
-    def start (self, pos):
+    def start_lanes (self, *lanes):
         modes = self._modes
         stopping = self._stopping
-        for lane in self.pos_lanes(pos[1]):
+        for lane in lanes:
             modes[lane] = 'moving'
             stopping[lane] = False
 
-    def stop (self, pos):
+    def start (self, pos):
+        self.start_lanes(*self.pos_lanes(pos[1]))
+
+    def stop_lanes (self, *lanes):
         modes = self._modes
         stopping = self._stopping
-        for lane in self.pos_lanes(pos[1]):
+        for (lane, pos) in lanes:
             modes[lane] = 'stopped'
-            stopping[lane] = self._tile_x_back(lane, pos[0])
+            stopping[lane] = self._tile_x_back(lane, pos)
+
+    def stop (self, pos):
+        self.stop_lanes(*((lane, pos[0]) for lane in self.pos_lanes(pos[1])))
 
     def _jitter_clamp (self, x, lb, ub, lane):
         s = conf.TILE_SIZE[1]
@@ -292,25 +298,23 @@ class Car (object):
     def _add_objs (self, cls):
         if self._objs:
             self._rm_objs()
-        os = self._objs
+        objs = self._objs
         level = self.road.level
         add = level.add_obj
         for pos in level.rect_tiles(self.rect):
             obj = cls(level, pos)
             add(obj, pos)
-            os.append(obj)
+            objs.append(obj)
 
     def _rm_objs (self):
         rm = self.road.level.rm_obj
-        for o in self._objs:
-            rm(o)
+        for obj in self._objs:
+            rm(obj)
         self._objs = []
 
     def start (self):
         if self.mode == 'stopped':
             self.mode = 'moving'
-            for o in self._objs:
-                self.road.level.rm_obj(o)
             self._rm_objs()
 
     def stop (self):
