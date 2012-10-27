@@ -171,15 +171,18 @@ class Conf (object):
     # level 1
     CIRCUIT = {
         'rect': (0, 400, 600, 200),
-        'size': (24, 8),
-        'pwr': (6, 5),
-        'states': [(4, 4)],
+        'size': (15, 5),
+        'pwr': (6, 4),
+        'states': [(4, 3), (8, 1), (10, 3), (11, 4)],
         'initial dirn': 0,
-        'wires': [((6, 5), (5, 5)), ((5, 5), (4, 5)), ((4, 5), (4, 4))]
+        'wires': [((6, 4), (5, 4)), ((5, 4), (4, 4)), ((4, 4), (4, 3))]
     }
     CIRCUIT_PWR_COLOUR = (0, 0, 0)
-    CIRCUIT_STATE_COLOURS = [(255, 0, 0)]
-    CIRCUIT_MOVE_TIME = 1
+    CIRCUIT_STATE_COLOURS = [(0, 255, 0), (255, 150, 0), (255, 0, 0),
+                             (255, 150, 0)]
+    CIRCUIT_MOVE_TIME = .1
+    CIRCUIT_INITIAL_STATE = 0
+    TRAFFIC_LIGHT_STOP_STATES = (2,)
 
 
 def translate_dd (d):

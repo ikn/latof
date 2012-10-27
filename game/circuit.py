@@ -20,6 +20,7 @@ class CircuitPuzzle (object):
         for i, (x, y) in enumerate(conf['states']):
             vs[x][y][1] = i
         self._dirn = self._initial_dirn = conf['initial dirn']
+        self._n_states = len(conf['states'])
         # display
         self.rect = r = pg.Rect(conf['rect'])
         self._tile_size = r[2] / w
@@ -32,12 +33,13 @@ class CircuitPuzzle (object):
         add = self._add_wire
         for wire in conf['wires']:
             add(*wire)
-
+        # don't need to validate initial circuit
+        self._need_check = False
 
     def _add_wire (self, end0, end1):
         x0, y0 = end0 = tuple(end0)
         x1, y1 = end1 = tuple(end1)
-        key = (end0, end1)
+        key = tuple(sorted((end0, end1)))
         vs = self.vertices
         axis = int(x0 == x1)
         d = 1 if end1[axis] > end0[axis] else -1
@@ -45,21 +47,67 @@ class CircuitPuzzle (object):
         vs[x1][y1][0][key] = (axis, -d)
         for x, y in (end0, end1):
             self._draw_tile(x, y)
+        self._need_check = True
+        self._checking = False
+
+    def _rm_wire (self, wire):
+        wire = tuple(sorted(wire))
+        for x, y in wire:
+            del self.vertices[x][y][0][wire]
+            self._draw_tile(x, y)
+        self._need_check = True
+        self._checking = False
+
+    def _toggle_wire (self, wire):
+        wire = tuple(sorted(wire))
+        if wire in self.vertices[wire[0][0]][wire[0][1]][0]:
+            self._rm_wire(wire)
+        else:
+            self._add_wire(*wire)
 
     def step (self):
         x, y = pos = list(self.pos)
-        from_dirn = (self._dirn + 2) % 4
+        from_dirn = None if self._dirn is None else ((self._dirn + 2) % 4)
+        # get list of wires we can follow
+        good_wires = []
         for wire, (axis, d) in self.vertices[x][y][0].iteritems():
-            this_dirn = axis + d + 1
-            if this_dirn != from_dirn:
-                # move along this wire
-                pos[axis] += d
-                self._dirn = this_dirn
-                self.set_pos(pos)
-                return
-        # restart from power source
-        self.set_pos(self.pwr)
-        self._dirn = self._initial_dirn
+            wire_dirn = axis + d + 1
+            if from_dirn is None or wire_dirn != from_dirn:
+                good_wires.append((axis, d, wire_dirn))
+        # only move if we have exactly one choice
+        if len(good_wires) == 1:
+            # move along this wire
+            axis, d, wire_dirn = good_wires[0]
+            pos[axis] += d
+            self._dirn = wire_dirn
+            self.set_pos(pos)
+        # else restart from power source
+        else:
+            self.set_pos(self.pwr)
+            self._dirn = self._initial_dirn
+        # handle circuit validity check
+        state = self.vertices[self.pos[0]][self.pos[1]][1]
+        if state == 'pwr':
+            if self._checking:
+                # circuit check complete: see if we have everything
+                if len(self._check_states) == self._n_states:
+                    # valid circuit
+                    self._need_check = False
+                    self._checking = False
+                else:
+                    # invalid circuit: check again
+                    self._check_states = set()
+            elif self._need_check:
+                # start a check this circuit
+                self._checking = True
+                self._check_states = set()
+        elif isinstance(state, int) and self._checking:
+            self._check_states.add(state)
+        # return state
+        if self._need_check:
+            return conf.CIRCUIT_INITIAL_STATE
+        elif isinstance(state, int):
+            return state
 
     def set_pos (self, pos):
         orig_pos = self.pos
@@ -69,10 +117,32 @@ class CircuitPuzzle (object):
 
     def _click (self, evt):
         r = self.rect
-        p = evt.pos
-        if not r.collidepoint(p):
+        if not r.collidepoint(evt.pos):
             self.hide()
             return
+        if evt.button in (1, 2, 3):
+            x, y = evt.pos
+            x -= r[0]
+            y -= r[1]
+            # get clicked tile
+            s = self._tile_size
+            hs = s / 2
+            tx = x / s
+            ty = y / s
+            # get nearest wire
+            dx = (y % s) - hs
+            dy = (x % s) - hs
+            axis = int(abs(dy) < abs(dx))
+            d = 1 if (dx, dy)[not axis] > 0 else -1
+            # check bounds
+            wire = ((tx, ty), (tx + d, ty) if axis == 0 else (tx, ty + d))
+            w, h = self.size
+            for x, y in wire:
+                if x < 0 or x >= w or y < 0 or y >= h:
+                    # OoB
+                    return
+            # add/remove wire
+            self._toggle_wire(wire)
 
     def _move_mouse (self, evt):
         r = self.rect

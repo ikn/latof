@@ -325,12 +325,30 @@ class TrafficLight (OneTileObj):
     def __init__ (self, level, *args, **kwargs):
         OneTileObj.__init__(self, level, *args, **kwargs)
         self._circuit = circuit.CircuitPuzzle(level, conf.CIRCUIT)
+        self._state = None
+        initial = conf.CIRCUIT_INITIAL_STATE
+        self._stopped = not (initial in conf.TRAFFIC_LIGHT_STOP_STATES)
+        self._set_state(initial)
         self._step()
 
     def _step (self):
-        stage = self._circuit.step()
+        state = self._circuit.step()
+        if state is not None:
+            self._set_state(state)
         self.level.game.scheduler.add_timeout(self._step,
                                               seconds = conf.CIRCUIT_MOVE_TIME)
+
+    def _set_state (self, state):
+        old_state = self._state
+        if old_state != state:
+            self._state = state
+            # TODO: update image
+            self._set_stop(state in conf.TRAFFIC_LIGHT_STOP_STATES)
+
+    def _set_stop (self, stop):
+        if self._stopped != stop:
+            self._stopped = stop
+            print stop
 
     def interact (self, frog):
         self._circuit.show()
