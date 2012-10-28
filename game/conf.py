@@ -132,10 +132,10 @@ class Conf (object):
     b = (0, 0, 0)
     INIT_FADE = [b, (False, 1)]
     # each is (event_time, fade[, restore_control_time = event_time)
-    RESTART = (1.5, [False, (b, 1), (b, 1.5), (False, 2.5)])
-    PROGRESS = (1.5, [False, (b, 1), (b, 1.5), (False, 2.5)])
+    RESTART = (1.25, [False, (b, 1), (b, 1.5), (False, 2.5)])
+    PROGRESS = (1.25, [False, (b, 1), (b, 1.5), (False, 2.5)])
     END = (1, [False, (b, 1)])
-    CRASH = (5, [False, (b, 1), (b, 11), (False, 12)], 3)
+    CRASH = (6, [False, (b, 1), (b, 11), (False, 12)], 3)
     CRASH_STOP_TRAFFIC_SND_TIME = 1
 
     # UI
@@ -165,8 +165,12 @@ class Conf (object):
     }, {
         'frog pos': (7, 12),
         'objs': {
-            (10, 10): 'TrafficLight'
+            (8, 10): 'TrafficLight',
+            (6, 4): 'TrafficLight'
         }
+    }, {
+        'frog pos': (7, 12),
+        'objs': {}
     }]
     # level 1
     CIRCUIT = {

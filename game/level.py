@@ -3,9 +3,11 @@ from math import ceil
 import pygame as pg
 
 from conf import conf
+from util import dd
 import obj as obj_module
 from frog import Frog
 from road import Road
+import circuit
 
 TILE_SIZE = conf.TILE_SIZE
 LEVEL_SIZE = conf.LEVEL_SIZE
@@ -100,20 +102,24 @@ class Level (object):
     def restart (self):
         self.cutscene(self.init, *conf.RESTART)
 
+    def _progress (self):
+        self._cleanup()
+        self.game.switch_backend(level_backends[self.ident], self.ident)
+
     def progress (self):
         self.ident += 1
         if self.ident >= len(conf.LEVELS):
-            self.cutscene(self.game.quit_backend, *conf.END)
+            self.cutscene(self.game.quit_backend, *conf.END, persist = True)
         else:
-            self.cutscene(self.init, *conf.PROGRESS)
+            self.cutscene(self._progress, *conf.PROGRESS)
 
     def _end_cutscene (self):
         self._locked = False
 
-    def cutscene (self, evt_f, evt_t, fade, ctrl_t = None):
+    def cutscene (self, evt_f, evt_t, fade, ctrl_t = None, persist = False):
         self._locked = True
         self.frog.stop()
-        self.game.linear_fade(*fade)
+        self.game.linear_fade(*fade, persist = persist)
         self.game.scheduler.add_timeout(evt_f, seconds = evt_t)
         if ctrl_t is None:
             ctrl_t = evt_t
@@ -323,3 +329,31 @@ class Level (object):
         self._changed = set()
         self._changed_rects = []
         return rtn
+
+
+class Level1 (Level):
+    def __init__ (self, game, event_handler, ident = 0):
+        self.tls = []
+        Level.__init__(self, game, event_handler, ident)
+        self.circuit = circuit.CircuitPuzzle(self, conf.CIRCUIT)
+        self._finished = False
+        self._step()
+        game.scheduler.add_timeout(self._step,
+                                   seconds = conf.CIRCUIT_MOVE_TIME)
+
+    def _cleanup (self):
+        self._finished = True
+
+    def _step (self):
+        if self._finished:
+            return False
+        state = self.circuit.step()
+        if state is not None:
+            for tl in self.tls:
+                tl.set_state(state)
+        return True
+
+
+level_backends = dd(Level, {
+    1: Level1
+})

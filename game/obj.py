@@ -1,6 +1,5 @@
 from conf import conf
 from util import ir
-import circuit
 
 #   object methods:
 # Obj.interact(frog): perform basic action on object
@@ -324,37 +323,36 @@ class PuddleOfOil (OneTileObj):
 class TrafficLight (OneTileObj):
     def __init__ (self, level, *args, **kwargs):
         OneTileObj.__init__(self, level, *args, **kwargs)
-        self._circuit = circuit.CircuitPuzzle(level, conf.CIRCUIT)
+        if self.pos[1] < level.road.tile_rect[1]:
+            lane = 0
+        else:
+            lane = len(conf.ROAD_LANES) - 1
+        self._dirn = level.road.lane_dirn(lane)
         self._state = None
         initial = conf.CIRCUIT_INITIAL_STATE
         self._stopped = not (initial in conf.TRAFFIC_LIGHT_STOP_STATES)
-        self._set_state(initial)
-        self._step()
+        self.set_state(initial)
+        level.tls.append(self)
 
-    def _step (self):
-        state = self._circuit.step()
-        if state is not None:
-            self._set_state(state)
-        self.level.game.scheduler.add_timeout(self._step,
-                                              seconds = conf.CIRCUIT_MOVE_TIME)
-
-    def _set_state (self, state):
+    def set_state (self, state):
         old_state = self._state
         if old_state != state:
             self._state = state
             # TODO: update image
-            self._set_stop(state in conf.TRAFFIC_LIGHT_STOP_STATES)
-
-    def _set_stop (self, stop):
-        if self._stopped != stop:
-            self._stopped = stop
-            road = self.level.road
-            if stop:
-                print 'stop'
-                road.stop_lanes((0, 5), (1, 5), (2, 7), (3, 7))
-            else:
-                print 'start'
-                road.start_lanes(0, 1, 2, 3)
+            # update whether stopped
+            stop = state in conf.TRAFFIC_LIGHT_STOP_STATES
+            if self._stopped != stop:
+                self._stopped = stop
+                road = self.level.road
+                dirn = self._dirn
+                lanes = [lane for lane in xrange(len(conf.ROAD_LANES))
+                        if road.lane_dirn(lane) == dirn]
+                if stop:
+                    x = self.pos[0]
+                    dirn = self._dirn
+                    road.stop_lanes(*((lane, x - dirn) for lane in lanes))
+                else:
+                    road.start_lanes(*lanes)
 
     def interact (self, frog):
-        self._circuit.show()
+        self.level.circuit.show()

@@ -18,7 +18,7 @@ pg.mixer.pre_init(buffer = 1024)
 pg.init()
 
 from game.conf import conf
-from game.level import Level
+from game.level import level_backends
 from game.util import ir, convert_sfc
 from game.ext.sched import Scheduler
 from game.ext import evthandler as eh
@@ -743,6 +743,7 @@ if __name__ == '__main__':
         restarting = True
         while restarting:
             restarting = False
-            Game(Level, 0).run()
+            level = 0
+            Game(level_backends[level], level).run()
 
 pg.quit()
