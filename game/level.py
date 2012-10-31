@@ -23,6 +23,10 @@ class Overlay (object):
     def _update (self):
         self.tiles = self.level.change_rect(self.rect)
 
+    def update (self):
+        # update without changing surface, position or size
+        self.level.change_rect(self.rect, self.tiles)
+
     def _set_rect (self, r1):
         level = self.level
         r0 = self.rect
@@ -32,8 +36,7 @@ class Overlay (object):
             level.change_rect(r0)
             self.tiles = level.change_rect(r1)
         else:
-            level.change_rect(r)
-            self.tiles = level.rect_tiles(r)
+            self.tiles = level.change_rect(r)
 
     def show (self):
         os = self.level.overlays
@@ -189,8 +192,9 @@ class Level (object):
                         tiles.append((i, j))
         return tiles
 
-    def change_rect (self, rect):
-        tiles = self.rect_tiles(rect)
+    def change_rect (self, rect, tiles = None):
+        if tiles is None:
+            tiles = self.rect_tiles(rect)
         self._changed.update(tiles)
         self._changed_rects.append(rect)
         return tiles

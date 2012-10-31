@@ -176,16 +176,13 @@ class Conf (object):
     CIRCUIT = {
         'rect': (0, 400, 600, 200),
         'size': (15, 5),
-        'pwr': (6, 4),
-        'states': [(5, 4), (5, 3), (6, 3), (7, 3)],
+        'states': [(6, 4), (2, 2), (6, 1), (12, 3)],
         'initial dirn': 0,
-        'wires': [((6, 4), (5, 4)), ((5, 4), (5, 3)), ((5, 3), (6, 3)),
-                  ((6, 3), (7, 3)), ((7, 3), (7, 4)), ((7, 4), (6, 4))]
+        'pts': [(7, 4), (2, 4), (2, 2), (2, 1), (6, 1), (12, 1), (12, 4), (7, 4)]
     }
-    CIRCUIT_PWR_COLOUR = (0, 0, 0)
-    CIRCUIT_STATE_COLOURS = [(0, 255, 0), (255, 150, 0), (255, 0, 0),
+    CIRCUIT_STATE_COLOURS = [(0, 255, 0), (255, 100, 0), (255, 0, 0),
                              (255, 150, 0)]
-    CIRCUIT_MOVE_TIME = .1
+    CIRCUIT_MOVE_TIME = .05
     CIRCUIT_INITIAL_STATE = 0
     TRAFFIC_LIGHT_STOP_STATES = (2,)
 
