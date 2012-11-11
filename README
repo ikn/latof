@@ -1,4 +1,4 @@
-Life and Times of Frog? (release 1): a Frogger-ish point-and-click adventure
+Life and Times of Frog? (release 2): a Frogger-ish point-and-click adventure
 game where you control a frog called Frog?, created for a 2-week competition
 with the theme 'retro with a twist'.
 
@@ -26,11 +26,13 @@ executable.
 
     CONTROLS
 
-left-click: move; inspect or interact with objects.
-right-click: pick up, drop or use objects.
-middle-click: move; drop objects. (This allows you to move on top of an object
-              or put an object on another (as long as the target object is
-              flat.)
+left-click: move; inspect or interact with objects
+right-click: pick up, drop or use objects
+middle-click: move; drop objects (allows you to move on top of an object or put
+              an object on another (as long as the target object is flat))
+escape, backspace: quit
+F11, alt + enter: toggle fullscreen
+F10: minimise
 
     LICENSING
 

@@ -45,7 +45,7 @@ class Conf (object):
     FONT_DIR = DATA_DIR + 'font' + sep
 
     # display
-    WINDOW_ICON = None #IMG_DIR + 'icon.png'
+    WINDOW_ICON = IMG_DIR + 'icon.png'
     WINDOW_TITLE = 'Life and Times of Frog?'
     MOUSE_VISIBLE = dd(True) # per-backend
     FLAGS = 0

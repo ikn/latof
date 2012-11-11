@@ -1,6 +1,7 @@
 from math import ceil
 
 import pygame as pg
+from ext import evthandler as eh
 
 from conf import conf
 from util import dd
@@ -74,6 +75,9 @@ class Level (object):
             pg.MOUSEBUTTONDOWN: self._click,
             pg.MOUSEMOTION: self._move_mouse
         })
+        event_handler.add_key_handlers([
+            (conf.KEYS_BACK, self.end, eh.MODE_ONDOWN)
+        ])
         self._held_sfc = pg.Surface(TILE_SIZE).convert_alpha()
         self._held_sfc.fill(conf.UI_BG)
         self._last_ident = self.ident = ident
@@ -105,6 +109,9 @@ class Level (object):
     def restart (self):
         self.cutscene(self.init, *conf.RESTART)
 
+    def end (self, *args):
+        self.cutscene(self.game.quit_backend, *conf.END, persist = True)
+
     def _progress (self):
         if hasattr(self, '_cleanup'):
             self._cleanup()
@@ -113,7 +120,7 @@ class Level (object):
     def progress (self):
         self.ident += 1
         if self.ident >= len(conf.LEVELS):
-            self.cutscene(self.game.quit_backend, *conf.END, persist = True)
+            self.end()
         else:
             self.cutscene(self._progress, *conf.PROGRESS)
 
