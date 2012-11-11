@@ -7,6 +7,7 @@ import level as level_module
 class CircuitPuzzle (object):
     def __init__ (self, level, conf):
         self.level = level
+        self._initialised = False
         # each vertex is [wires, obj]
         # each wire is in the wires dict as
         #   (end0, end1): (axis, d)_to_other_end
@@ -19,7 +20,7 @@ class CircuitPuzzle (object):
         for i, (x, y) in enumerate(conf['states']):
             vs[x][y][1] = i
         self._dirn = self._initial_dirn = conf['initial dirn']
-        self._n_states = len(conf['states']) - 1
+        self._n_states = len(conf['states'])
         # display
         self.rect = r = pg.Rect(conf['rect'])
         self._tile_size = r[2] / w
@@ -41,7 +42,14 @@ class CircuitPuzzle (object):
                 p[axis] += dirn
                 add(p0, tuple(p))
         # don't need to validate initial circuit
-        self._need_check = False
+        self._need_check = self._checking = False
+        self._initialised = True
+
+    def _check (self):
+        if self._initialised:
+            #print 'start check'
+            self._need_check = True
+            self._checking = False
 
     def _add_wire (self, end0, end1):
         x0, y0 = end0 = tuple(end0)
@@ -54,16 +62,14 @@ class CircuitPuzzle (object):
         vs[x1][y1][0][key] = (axis, -d)
         for x, y in (end0, end1):
             self._draw_tile(x, y)
-        self._need_check = True
-        self._checking = False
+        self._check()
 
     def _rm_wire (self, wire):
         wire = tuple(sorted(wire))
         for x, y in wire:
             del self.vertices[x][y][0][wire]
             self._draw_tile(x, y)
-        self._need_check = True
-        self._checking = False
+        self._check()
 
     def _toggle_wire (self, wire):
         wire = tuple(sorted(wire))
@@ -97,12 +103,14 @@ class CircuitPuzzle (object):
         if state == 0:
             if self._checking:
                 # circuit check complete: see if we have everything
-                if len(self._check_states) == self._n_states:
+                if len(self._check_states) == self._n_states - 1:
                     # valid circuit
+                    #print 'valid'
                     self._need_check = False
                     self._checking = False
                 else:
                     # invalid circuit: check again
+                    #print 'error'
                     self._check_states = set()
             elif self._need_check:
                 # start a check this circuit
@@ -186,10 +194,13 @@ class CircuitPuzzle (object):
                 p = list(centre)
                 p[axis] += d * hs
                 pg.draw.line(sfc, colour, centre, p, w)
+        imgs = []
         if obj is not None:
-            img = self.level.game.img(('circuit', '{0}.png'.format(obj)))
+            imgs.append(obj)
+        if tuple(self.pos) == (tx, ty):
+            imgs.append('pos')
+        for ident in imgs:
+            img = self.level.game.img(('circuit', '{0}.png'.format(ident)))
             w, h = img.get_size()
             sfc.blit(img, (centre[0] - w / 2, centre[1] - h / 2))
-        if tuple(self.pos) == (tx, ty):
-            pg.draw.circle(sfc, (0, 0, 255), centre, hs / 3)
         self._overlay.update()

@@ -743,7 +743,7 @@ if __name__ == '__main__':
         restarting = True
         while restarting:
             restarting = False
-            level = 1
+            level = 0
             Game(level_backends[level], level).run()
 
 pg.quit()

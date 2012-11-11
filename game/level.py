@@ -106,7 +106,8 @@ class Level (object):
         self.cutscene(self.init, *conf.RESTART)
 
     def _progress (self):
-        self._cleanup()
+        if hasattr(self, '_cleanup'):
+            self._cleanup()
         self.game.switch_backend(level_backends[self.ident], self.ident)
 
     def progress (self):
