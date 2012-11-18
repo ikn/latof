@@ -38,7 +38,7 @@ class Conf (object):
     CONF = join_path(CONF_DIR, 'conf')
 
     # data paths
-    DATA_DIR = ''
+    DATA_DIR = u''
     IMG_DIR = DATA_DIR + 'img' + sep
     SOUND_DIR = DATA_DIR + 'sound' + sep
     MUSIC_DIR = DATA_DIR + 'music' + sep

@@ -5,33 +5,37 @@ import level as level_module
 
 
 class CircuitPuzzle (object):
-    def __init__ (self, level, conf):
+    def __init__ (self, level, data):
         self.level = level
         self._initialised = False
         # each vertex is [wires, obj]
         # each wire is in the wires dict as
         #   (end0, end1): (axis, d)_to_other_end
         # obj is state ID or None
-        w, h = self.size = conf['size']
+        w, h = data['size']
+        draw_w = w
+        w -= 1
+        self.size = (w, h)
         self.vertices = vs = [[[{}, None] for j in xrange(h)]
                               for i in xrange(w)]
-        self._init_state = conf['states'][0]
+        self._init_state = data['states'][0]
         self.pos = list(self._init_state)
-        for i, (x, y) in enumerate(conf['states']):
+        for i, (x, y) in enumerate(data['states']):
             vs[x][y][1] = i
-        self._dirn = self._initial_dirn = conf['initial dirn']
-        self._n_states = len(conf['states'])
+        self._dirn = self._initial_dirn = data['initial dirn']
+        self._n_states = len(data['states'])
+        self._state = conf.CIRCUIT_INITIAL_STATE
         # display
-        self.rect = r = pg.Rect(conf['rect'])
-        self._tile_size = r[2] / w
+        self.rect = r = pg.Rect(data['rect'])
+        self._tile_size = r[2] / draw_w
         self._sfc = pg.Surface(r.size)
         self._overlay = level_module.Overlay(level, self._sfc, r.topleft)
-        for x in xrange(w):
+        for x in xrange(draw_w):
             for y in xrange(h):
                 self._draw_tile(x, y)
         # add wires
         add = self._add_wire
-        pts = conf['pts']
+        pts = data['pts']
         for i in xrange(len(pts) - 1):
             x0, y0 = p = list(pts[i])
             x1, y1 = pf = list(pts[i + 1])
@@ -45,9 +49,13 @@ class CircuitPuzzle (object):
         self._need_check = self._checking = False
         self._initialised = True
 
+    def _set_state (self, state):
+        self._state = state
+        self._draw_tile(self.size[0], self.size[1] - 1)
+
     def _check (self):
         if self._initialised:
-            #print 'start check'
+            self._set_state('error')
             self._need_check = True
             self._checking = False
 
@@ -105,19 +113,23 @@ class CircuitPuzzle (object):
                 # circuit check complete: see if we have everything
                 if len(self._check_states) == self._n_states - 1:
                     # valid circuit
-                    #print 'valid'
+                    self._set_state(state)
                     self._need_check = False
                     self._checking = False
                 else:
                     # invalid circuit: check again
-                    #print 'error'
                     self._check_states = set()
             elif self._need_check:
                 # start a check this circuit
                 self._checking = True
                 self._check_states = set()
-        elif isinstance(state, int) and self._checking:
-            self._check_states.add(state)
+            else:
+                self._set_state(state)
+        elif isinstance(state, int):
+            if self._checking:
+                self._check_states.add(state)
+            elif not self._need_check:
+                self._set_state(state)
         # return state
         if self._need_check:
             return conf.CIRCUIT_INITIAL_STATE
@@ -174,33 +186,42 @@ class CircuitPuzzle (object):
         self._overlay.hide()
 
     def _draw_tile (self, tx, ty):
-        wires, obj = self.vertices[tx][ty]
+        w, h = self.size
+        sfc = self._sfc
         s = self._tile_size
+        hs = s / 2
         x = tx * s
         y = ty * s
-        sfc = self._sfc
-        sfc.fill((255, 255, 255), (x, y, s, s))
-        hs = s / 2
-        wires = wires.values()
         centre = (x + hs, y + hs)
-        for axis in (0, 1):
-            for d in (-1, 1):
-                if (axis, d) in wires:
-                    w = 2
-                    colour = (0, 0, 0)
-                else:
-                    w = 1
-                    colour = (150, 150, 150)
-                p = list(centre)
-                p[axis] += d * hs
-                pg.draw.line(sfc, colour, centre, p, w)
+        # background
+        sfc.fill((255, 255, 255), (x, y, s, s))
+        if tx == w:
+            obj = self._state if ty == h - 1 else None
+        else:
+            # wires
+            wires, obj = self.vertices[tx][ty]
+            wires = wires.values()
+            for axis in (0, 1):
+                for d in (-1, 1):
+                    if (axis, d) in wires:
+                        line_w = 2
+                        colour = (0, 0, 0)
+                    else:
+                        line_w = 1
+                        colour = (150, 150, 150)
+                    p = list(centre)
+                    p[axis] += d * hs
+                    pg.draw.line(sfc, colour, centre, p, line_w)
+        # objects
         imgs = []
         if obj is not None:
+            if obj == 0 and tx != w:
+                imgs.append('arrow')
             imgs.append(obj)
         if tuple(self.pos) == (tx, ty):
             imgs.append('pos')
         for ident in imgs:
             img = self.level.game.img(('circuit', '{0}.png'.format(ident)))
-            w, h = img.get_size()
-            sfc.blit(img, (centre[0] - w / 2, centre[1] - h / 2))
+            img_w, img_h = img.get_size()
+            sfc.blit(img, (centre[0] - img_w / 2, centre[1] - img_h / 2))
         self._overlay.update()
