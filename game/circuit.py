@@ -30,6 +30,7 @@ class CircuitPuzzle (object):
         self._tile_size = r[2] / draw_w
         self._sfc = pg.Surface(r.size)
         self._overlay = level_module.Overlay(level, self._sfc, r.topleft)
+        self._need_check = self._checking = False
         for x in xrange(draw_w):
             for y in xrange(h):
                 self._draw_tile(x, y)
@@ -55,9 +56,10 @@ class CircuitPuzzle (object):
 
     def _check (self):
         if self._initialised:
-            self._set_state('error')
             self._need_check = True
             self._checking = False
+            self._set_state('error')
+            self._draw_statuses()
 
     def _add_wire (self, end0, end1):
         x0, y0 = end0 = tuple(end0)
@@ -86,6 +88,13 @@ class CircuitPuzzle (object):
         else:
             self._add_wire(*wire)
 
+    def _draw_statuses (self, *states):
+        if not states:
+            states = xrange(self._n_states)
+        w = self.size[0]
+        for state in states:
+            self._draw_tile(w, state)
+
     def step (self):
         x, y = pos = list(self.pos)
         from_dirn = None if self._dirn is None else ((self._dirn + 2) % 4)
@@ -113,21 +122,25 @@ class CircuitPuzzle (object):
                 # circuit check complete: see if we have everything
                 if len(self._check_states) == self._n_states - 1:
                     # valid circuit
-                    self._set_state(state)
                     self._need_check = False
                     self._checking = False
+                    self._set_state(state)
                 else:
                     # invalid circuit: check again
+                    check_states = self._check_states
                     self._check_states = set()
+                    self._draw_statuses(*check_states)
             elif self._need_check:
                 # start a check this circuit
                 self._checking = True
                 self._check_states = set()
+                self._draw_statuses()
             else:
                 self._set_state(state)
         elif isinstance(state, int):
             if self._checking:
                 self._check_states.add(state)
+                self._draw_statuses(state)
             elif not self._need_check:
                 self._set_state(state)
         # return state
@@ -196,7 +209,7 @@ class CircuitPuzzle (object):
         # background
         sfc.fill((255, 255, 255), (x, y, s, s))
         if tx == w:
-            obj = self._state if ty == h - 1 else None
+            obj = self._state if ty == h - 1 else ty
         else:
             # wires
             wires, obj = self.vertices[tx][ty]
@@ -218,6 +231,15 @@ class CircuitPuzzle (object):
             if obj == 0 and tx != w:
                 imgs.append('arrow')
             imgs.append(obj)
+            if tx == w and ty != h - 1:
+                if self._checking:
+                    got = ty == 0 or ty in self._check_states
+                elif self._need_check:
+                    got = False
+                else:
+                    got = True
+                if got:
+                    imgs.append('tick')
         if tuple(self.pos) == (tx, ty):
             imgs.append('pos')
         for ident in imgs:
