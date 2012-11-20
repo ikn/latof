@@ -76,7 +76,9 @@ class Frog (obj_module.OneTileObj):
         self.pos = dest
         return ir(conf.FROG_MOVE_TIME * self.level.game.scheduler.timer.fps)
 
-    def get_path (self, dest, all_objs, objs = ()):
+    def get_path (self, dest, extra_objs = ()):
+        objs = set(extra_objs)
+        objs.update(self.level.solid_objs(self))
         # get shortest path to dest
         road_tiles = self.level.road.tiles
         lane_moving = self.level.road.lane_moving
@@ -87,17 +89,23 @@ class Frog (obj_module.OneTileObj):
             w = 1
             if pos in road_tiles:
                 w += 5 * lane_moving(pos[1])
-            if pos in all_objs:
-                w += 5
             return w
-        tot = dist(pos, dest)
+        nearest = tot = dist(pos, dest)
+        nearests = [(0, pos)]
         todo = {pos: (None, 0, tot, tot)}
         done = {}
         while True:
             # choose next tile
             if not todo:
                 # no path exists
-                return False
+                if nearests:
+                    # go to nearest tile instead
+                    current = min(nearests)[1]
+                    break
+                else:
+                    # do nothing
+                    assert False, 'no possible path'
+                    return False
             tot, current, current_start = min((tot, pos, start)
                 for (pos, (parent, start, end, tot)) in todo.iteritems())
             # mark this tile as done
@@ -112,8 +120,7 @@ class Frog (obj_module.OneTileObj):
                     pos = list(current)
                     pos[axis] += d
                     pos = tuple(pos)
-                    if pos[axis] < 0 or pos[axis] >= sz[axis] or pos in objs \
-                       or pos in done:
+                    if pos[axis] < 0 or pos[axis] >= sz[axis] or pos in objs or pos in done:
                         # out of bounds or non-empty or already considered
                         continue
                     # found one
@@ -125,6 +132,11 @@ class Frog (obj_module.OneTileObj):
                             continue
                     else:
                         end = dist(pos, dest)
+                        if end == nearest:
+                            nearests.append((start, pos))
+                        elif end < nearest:
+                            nearest = end
+                            nearests = [(start, pos)]
                     # store
                     todo[pos] = (current, start, end, start + end)
         # construct the path
@@ -137,9 +149,7 @@ class Frog (obj_module.OneTileObj):
         path.reverse()
         return path[1:] # first item will be the current position
 
-    def move (self, dest, objs = None):
-        if objs is None:
-            objs = []
+    def move (self, dest, objs = ()):
         # remove any queued movement
         q = self._queue
         rm = []
@@ -148,39 +158,11 @@ class Frog (obj_module.OneTileObj):
                 rm.append(item)
         for item in rm:
             q.remove(item)
-        all_objs = list(objs)
-        for x, col in enumerate(self.level.objs):
-            for y, os in enumerate(col):
-                for o in os:
-                    if o.solid and o is not self:
-                        all_objs.append((x, y))
-                        break
-        # first ignore all objects
-        path = self.get_path(dest, all_objs)
+        # get path to take
+        path = self.get_path(dest, objs)
         if path is False:
             # no possible path: don't move at all (shouldn't ever happen)
             return
-        # now unignore every object we didn't cross
-        objs += [pos for pos in all_objs if pos not in path]
-        # now unignore each object we cross in turn until we get no further
-        while True:
-            # get first object
-            found = False
-            for i, pos in enumerate(path):
-                if pos in all_objs:
-                    objs.append(pos)
-                    found = True
-                    break
-            if not found:
-                # no objects crossed: path is good
-                break
-            # get path
-            last_path, path = path, self.get_path(dest, all_objs, objs)
-            if path is False:
-                # this is as far as we can go: use the last path up to the last
-                # object we removed
-                path = last_path[:i]
-                break
         # queue moves
         for pos in path:
             self.queue(self._move, pos)
@@ -323,18 +305,17 @@ class Frog (obj_module.OneTileObj):
             if self._queue:
                 f, args, kw = self._queue.pop(0)
                 self._queue_t = f(*args, **kw) or 1
-                if f == self._move:
-                    if self.pos[1] < self.level.road.tile_rect[1]:
-                        self.level.progress()
-                    else:
-                        l, p = self._last_pos, self.pos
-                        ld, d = self._last_dirn, self.dirn
-                        if l != p or ld != d:
-                            self.level.rm_obj(self, l)
-                            self.level.add_obj(self, p)
-                            self._last_pos = p
-                            self._last_dirn = d
         self._queue_t -= 1
+        if self.pos[1] < self.level.road.tile_rect[1]:
+            self.level.progress()
+        else:
+            l, p = self._last_pos, self.pos
+            ld, d = self._last_dirn, self.dirn
+            if l != p or ld != d:
+                self.level.rm_obj(self, l)
+                self.level.add_obj(self, p)
+                self._last_pos = p
+                self._last_dirn = d
 
     def draw (self, screen):
         if not self.dead:

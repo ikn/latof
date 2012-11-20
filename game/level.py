@@ -230,6 +230,17 @@ class Level (object):
         # select uppermost (last) obj
         return objs[-1] if objs else None
 
+    def solid_objs (self, *ignore):
+        # return set of tiles of containing solid objects
+        objs = set()
+        for x, col in enumerate(self.objs):
+            for y, os in enumerate(col):
+                for o in os:
+                    if o.solid and o not in ignore:
+                        objs.add((x, y))
+                        break
+        return objs
+
     def _add_ui (self, ident, sfc, pos = None):
         if pos is None:
             pos = conf.UI_POS[ident]
