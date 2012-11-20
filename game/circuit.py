@@ -207,9 +207,20 @@ class CircuitPuzzle (object):
         y = ty * s
         centre = (x + hs, y + hs)
         # background
-        sfc.fill((255, 255, 255), (x, y, s, s))
+        sfc.blit(self.level.game.img(('circuit', 'bg.png')), (x, y), (x, y, s, s))
         if tx == w:
-            obj = self._state if ty == h - 1 else ty
+            if ty == h - 1:
+                obj = self._state
+            else:
+                obj = ty
+                if self._checking:
+                    got = ty == 0 or ty in self._check_states
+                elif self._need_check:
+                    got = False
+                else:
+                    got = True
+                if not got:
+                    obj = '{0}-dark'.format(obj)
         else:
             # wires
             wires, obj = self.vertices[tx][ty]
@@ -217,29 +228,15 @@ class CircuitPuzzle (object):
             for axis in (0, 1):
                 for d in (-1, 1):
                     if (axis, d) in wires:
-                        line_w = 2
-                        colour = (0, 0, 0)
-                    else:
-                        line_w = 1
-                        colour = (150, 150, 150)
-                    p = list(centre)
-                    p[axis] += d * hs
-                    pg.draw.line(sfc, colour, centre, p, line_w)
+                        p = list(centre)
+                        p[axis] += d * hs
+                        pg.draw.line(sfc, (0, 0, 0), centre, p, 2)
         # objects
         imgs = []
         if obj is not None:
             if obj == 0 and tx != w:
                 imgs.append('arrow')
             imgs.append(obj)
-            if tx == w and ty != h - 1:
-                if self._checking:
-                    got = ty == 0 or ty in self._check_states
-                elif self._need_check:
-                    got = False
-                else:
-                    got = True
-                if got:
-                    imgs.append('tick')
         if tuple(self.pos) == (tx, ty):
             imgs.append('pos')
         for ident in imgs:
