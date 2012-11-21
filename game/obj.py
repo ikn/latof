@@ -1,3 +1,5 @@
+import pygame as pg
+
 from conf import conf
 from util import ir
 
@@ -68,15 +70,23 @@ class Obj (object):
 
 
 class OneTileObj (Obj):
+    skip_img = False
+
     def __init__ (self, level, pos = None):
         Obj.__init__(self, level, pos)
-        fn = ('obj', self.__class__.__name__.lower() + '.png')
-        self.img = level.game.img(fn)
+        if not self.skip_img:
+            self.set_img()
+
+    def set_img (self, img = None):
+        if img is None:
+            img = self.__class__.__name__.lower()
+        if isinstance(img, basestring):
+            img = ('obj', img + '.png')
+            self.img = self.level.game.img(img)
+        else:
+            self.img = img
         self._offset = [ir(float(t_s - i_s) / 2) for t_s, i_s in
                            zip(conf.TILE_SIZE, self.img.get_size())]
-
-    def set_img (self, img):
-        self.img = img
         if not self.held:
             self.level.change_tile(self.pos)
 
@@ -251,8 +261,6 @@ class Basket (Holdable):
 
     def __init__ (self, level, *args, **kw):
         Holdable.__init__(self, level, *args, **kw)
-        self._full_img = self.img
-        self._empty_img = level.game.img(('obj', 'emptybasket.png'))
         self.contents = [Apple, Banana, Orange, LumpOfCoal, Apple, Banana,
                          Orange, Apple, Banana, Orange]
 
@@ -269,7 +277,7 @@ class Basket (Holdable):
                 frog.grab(obj(level))
                 if len(self.contents) == 0:
                     # empty: replace image
-                    self.set_img(self._empty_img)
+                    self.set_img('emptybasket')
             else:
                 msg += 'I would take something if my hands weren\'t full.'
         else:
@@ -284,7 +292,7 @@ class Basket (Holdable):
 
     def add (self, cls):
         self.contents.insert(0, cls)
-        self.set_img(self._full_img)
+        self.set_img()
 
 
 class PicnicBlanket (Holdable):
@@ -321,6 +329,8 @@ class PuddleOfOil (OneTileObj):
 
 
 class TrafficLight (OneTileObj):
+    skip_img = True
+
     def __init__ (self, level, *args, **kwargs):
         OneTileObj.__init__(self, level, *args, **kwargs)
         if self.pos[1] < level.road.tile_rect[1]:
@@ -338,7 +348,8 @@ class TrafficLight (OneTileObj):
         old_state = self._state
         if old_state != state:
             self._state = state
-            # TODO: update image
+            self.set_img('trafficlight-{0}'.format(state))
+            self.set_img(pg.transform.rotate(self.img, self.angle))
             # update whether stopped
             stop = state in conf.TRAFFIC_LIGHT_STOP_STATES
             if self._stopped != stop:
@@ -356,3 +367,13 @@ class TrafficLight (OneTileObj):
 
     def interact (self, frog):
         self.level.circuit.show()
+
+
+class TrafficLightLeft (TrafficLight):
+    name = 'traffic light'
+    angle = 90
+
+
+class TrafficLightRight (TrafficLight):
+    name = 'traffic light'
+    angle = 270

@@ -165,8 +165,8 @@ class Conf (object):
     }, {
         'frog pos': (7, 12),
         'objs': {
-            (8, 10): 'TrafficLight',
-            (6, 4): 'TrafficLight'
+            (8, 10): 'TrafficLightRight',
+            (6, 4): 'TrafficLightLeft'
         }
     }]
     # level 1
