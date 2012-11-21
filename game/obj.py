@@ -87,7 +87,7 @@ class OneTileObj (Obj):
             self.img = img
         self._offset = [ir(float(t_s - i_s) / 2) for t_s, i_s in
                            zip(conf.TILE_SIZE, self.img.get_size())]
-        if not self.held:
+        if not self.held and self.pos is not None:
             self.level.change_tile(self.pos)
 
     def draw (self, screen, pos = None):
@@ -172,6 +172,46 @@ class Edible (Holdable):
             self.replace(self.drop_obj)
 
 
+class Container (Holdable):
+    container_desc = ''
+    extra_container_descs = {}
+    contents = ()
+
+    def __init__ (self, *args, **kwargs):
+        Holdable.__init__(self, *args, **kwargs)
+        self.contents = list(self.contents)
+
+    def interact (self, frog):
+        if self.contents:
+            msg = self.container_desc
+            if msg:
+                msg += '  '
+            if frog.item is None:
+                level = self.level
+                obj = self.contents.pop(0)
+                label = name(obj)
+                msg += 'I take {} {}.'.format(article(label), label)
+                for cls, desc in self.extra_container_descs.iteritems():
+                    if issubclass(obj, cls):
+                        msg += '  ' + desc
+                frog.grab(obj(level))
+                if len(self.contents) == 0 and hasattr(self, 'empty_img'):
+                    # empty: replace image
+                    self.set_img(self.empty_img)
+            else:
+                msg += 'I would take something if my hands weren\'t full.'
+        elif hasattr(self, 'empty_desc'):
+            msg = self.empty_desc
+        else:
+            msg = None
+        if msg is not None:
+            self.level.say(msg)
+
+    def add (self, cls):
+        self.contents.insert(0, cls)
+        self.set_img()
+
+
 # level 0
 
 
@@ -237,11 +277,6 @@ class Apple (Fruit):
     squash_obj = SquashedApple
 
 
-class SquashedBasket (OneTileObj):
-    solid = False
-    desc = 'I\'d rather not look in there.'
-
-
 class LumpOfCoal (Holdable):
     desc = 'Who wouldn\'t take a lump of coal on a picnic?'
 
@@ -255,34 +290,22 @@ class LumpOfCoal (Holdable):
         basket.add(self.__class__)
 
 
-class Basket (Holdable):
+class SquashedBasket (OneTileObj):
+    solid = False
+    desc = 'I\'d rather not look in there.'
+
+
+class Basket (Container):
     squash_obj = SquashedBasket
     squash_desc = 'Being a frog, wreaking havoc...what a life.'
-
-    def __init__ (self, level, *args, **kw):
-        Holdable.__init__(self, level, *args, **kw)
-        self.contents = [Apple, Banana, Orange, LumpOfCoal, Apple, Banana,
-                         Orange, Apple, Banana, Orange]
-
-    def interact (self, frog):
-        if self.contents:
-            msg = 'A basket of fruit.  '
-            if frog.item is None:
-                level = self.level
-                obj = self.contents.pop(0)
-                label = name(obj)
-                msg += 'I take {} {}.'.format(article(label), label)
-                if issubclass(obj, LumpOfCoal):
-                    msg += '  Wait, what?'
-                frog.grab(obj(level))
-                if len(self.contents) == 0:
-                    # empty: replace image
-                    self.set_img('emptybasket')
-            else:
-                msg += 'I would take something if my hands weren\'t full.'
-        else:
-            msg = 'The basket\'s empty now.  What a mess I\'ve made.'
-        self.level.say(msg)
+    container_desc = 'A basket of fruit.'
+    extra_container_descs = {
+        LumpOfCoal: 'Wait, what?'
+    }
+    empty_img = 'emptybasket'
+    empty_desc = 'The basket\'s empty now.  What a mess I\'ve made.'
+    contents = (Apple, Banana, Orange, LumpOfCoal, Apple, Banana, Orange,
+                Apple, Banana, Orange)
 
     def on_grab (self):
         x, y = self.pos
@@ -333,6 +356,7 @@ class TrafficLight (OneTileObj):
 
     def __init__ (self, level, *args, **kwargs):
         OneTileObj.__init__(self, level, *args, **kwargs)
+        self.unlocked = False
         if self.pos[1] < level.road.tile_rect[1]:
             lane = 0
         else:
@@ -365,8 +389,19 @@ class TrafficLight (OneTileObj):
                 else:
                     road.start_lanes(*lanes)
 
+    def unlock (self):
+        if not self.unlocked:
+            self.level.say('I remove a panel using the screwdriver.  There ' \
+                           'are some wires inside.')
+            self.unlocked = True
+
     def interact (self, frog):
-        self.level.circuit.show()
+        if isinstance(frog.item, Screwdriver):
+            self.unlock()
+        if self.unlocked:
+            self.level.circuit.show()
+        else:
+            self.level.say('This doesn\'t seem to be working right...')
 
 
 class TrafficLightLeft (TrafficLight):
@@ -375,5 +410,25 @@ class TrafficLightLeft (TrafficLight):
 
 
 class TrafficLightRight (TrafficLight):
-    name = 'traffic light'
+    name = 'traffic light' # BUG
     angle = 270
+
+
+class Screwdriver (Holdable):
+    solid = False
+
+    def use_on_toolbox (self, frog, toolbox, pos):
+        self.level.say('I put the {} back in the toolbox.'.format(name(self)))
+        frog.destroy()
+        toolbox.add(self.__class__)
+
+    def use_on_traffic_light (self, frog, tl, pos):
+        tl.unlock()
+
+    use_on_traffic_light_left = use_on_traffic_light
+    use_on_traffic_light_right = use_on_traffic_light
+
+
+class Toolbox (Container):
+    container_desc = empty_desc = 'A toolbox containing...tools.'
+    contents = (Screwdriver,)

@@ -215,6 +215,7 @@ class Level (object):
         if road.tile_rect.collidepoint(pos) and hasattr(obj, 'on_crash') and \
            road.lane_moving(pos[1]):
             obj.on_crash(self.frog, road)
+            assert not (obj.holdable and obj.solid)
 
     def rm_obj (self, obj, pos = None):
         if pos is None:

@@ -165,6 +165,7 @@ class Conf (object):
     }, {
         'frog pos': (7, 12),
         'objs': {
+            (5, 13): 'Toolbox',
             (8, 10): 'TrafficLightRight',
             (6, 4): 'TrafficLightLeft'
         }
